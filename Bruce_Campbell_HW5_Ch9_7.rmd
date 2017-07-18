@@ -1,0 +1,167 @@
+---
+title: "Bruce Campbell ST-617 Homework 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+#Chapter 9
+
+##Problem 7
+```In this problem, you will use support vector approaches in order to
+predict whether a given car gets high or low gas mileage based on the
+Auto data set.```
+
+### a) 
+```Create a binary variable that takes on a 1 for cars with gas
+mileage above the median, and a 0 for cars with gas mileage
+below the median.```
+
+```{r}
+library(ISLR)
+attach(Auto)
+
+median_mpg <-median(Auto$mpg)
+response <-matrix(data = 1,nrow = nrow(Auto),ncol = 1)
+response[Auto$mpg < median_mpg] <- 0
+
+plot(response,Auto$mpg,pch='*')
+abline(h=median_mpg,col='red',lwd=3)
+
+DF <- Auto
+DF$mpg <- NULL #We don't want to use this as a predictor since our response is derived from it.
+DF$name <-NULL
+DF <- data.frame(scale(DF)) #We might run into convergence issues with the svm without standardising the data first
+DF$response <- as.factor(response)
+# In order for e1071 to train a classifier we need to encode the response as a factor.
+```
+
+
+###b) 
+```Fit a support vector classifier to the data with various values
+of cost, in order to predict whether a car gets high or low gas
+mileage. Report the cross-validation errors associated with different
+values of this parameter. Comment on your results.```
+
+```{r}
+#We do a logistic classification to help us decide which variables we may want to consider looking
+#at in the svm plot. 
+glm.fit <- glm(response~.,data =DF,family=binomial )
+summary(glm.fit)
+
+library (e1071)
+svmfit =svm(response~., data=DF , kernel ="linear", cost =100,scale =FALSE)
+summary(svmfit)
+
+svmfit =svm(response~., data=DF , kernel ="linear", cost =10,scale =FALSE)
+names(DF)
+plot(svmfit,DF,acceleration~horsepower)
+plot(svmfit,DF,weight~horsepower)
+plot(svmfit,DF,horsepower~displacement)
+
+tune.svm=tune(svm, response~. , data=DF ,kernel ="linear",ranges =list(cost=c(0.001 , 0.01, 0.1, 1,5,10,100) ))
+
+summary(tune.svm)
+
+svmfit =svm(response~., data=DF , kernel ="linear", cost =5,scale =FALSE)
+svm.pred <- predict(svmfit, DF)
+TB <- table(svm.pred ,DF$response )
+library(pander)
+pander(TB)
+
+ACC_Linear = (TB[1]+TB[4])/ length(DF$response)
+
+plot(svmfit,DF,weight~horsepower)
+plot(svmfit,DF,weight~year)
+plot(svmfit,DF,horsepower~origin)
+
+#Now looking at some pairs not suggested by logistic regression
+plot(svmfit,DF,displacement~horsepower)
+plot(svmfit,DF,weight~displacement)
+```
+
+In the plots we see the need to consider kernels of non linear similarity functions.  The optimal cost reported by the cross validation routine is 5. The accuracy of the model with optimal cost chosen by cross validation is ```r ACC_Linear```
+
+### c) 
+```Now repeat (b), this time using SVMs with radial and polynomial
+basis kernels, with different values of gamma and degree and
+cost. Comment on your results.```
+
+```{r}
+gamma_default <- 1/(ncol(DF)-1)
+
+gamma_list <-((1:20)/10)*gamma_default
+tune.svm=tune(svm, response~. , data=DF ,kernel ="radial",ranges =list(gamma=gamma_list ))
+summary(tune.svm)
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DF)
+TB <- table(svm.pred ,DF$response )
+pander(TB)
+
+ACC_Radial = (TB[1]+TB[4])/ length(DF$response)
+
+plot(svm.fit,DF,weight~horsepower)
+plot(svm.fit,DF,weight~year)
+plot(svm.fit,DF,horsepower~origin)
+
+#Now looking at some pairs not suggested by logistic regression
+plot(svm.fit,DF,displacement~horsepower)
+plot(svm.fit,DF,weight~displacement)
+
+```
+
+For the SVM trained with a kernel using the radial basis similarity function the accuracy has improved from ```r ACC_Linear``` to ```r ACC_Radial```.  This is not a dramatic imporvement.  It seems the displacement predictor is not being fit well we hope this is ameliorated by using the polynomial kernel.  It's possible there is correlation between displacement and one of the other variables.
+
+```{r}
+gamma_default <- 1/(ncol(DF)-1)
+
+gamma_list <-((1:20)/10)*gamma_default
+tune.svm=tune(svm, response~. , data=DF ,kernel ="polynomial",ranges =list(gamma=gamma_list ),degree=4)
+summary(tune.svm)
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DF)
+TB <- table(svm.pred ,DF$response )
+pander(TB)
+
+ACC_polynomial = (TB[1]+TB[4])/ length(DF$response)
+
+plot(svm.fit,DF,weight~horsepower,fill=TRUE)
+plot(svm.fit,DF,weight~year,fill = TRUE)
+plot(svm.fit,DF,horsepower~origin,fill = TRUE)
+
+#Now looking at some pairs not suggested by logistic regression
+plot(svm.fit,DF,displacement~horsepower,fill = TRUE)
+plot(svm.fit,DF,weight~displacement,fill = TRUE)
+
+```
+
+We're pleased to see that the accuracy has improved even further to ```r ACC_polynomial```.  
+
+### d) Make some plots to back up your assertions in (b) and (c).
+
+See above for svm plots.  We'd like to note that the regions of classification are not plotted well for
+the ploynomical case.  We can see the support vectors lead to resonable classification results in the plots - but we notice that the shaded regions of class 1 and class 0 do not align with the support vectors - even though the accuracy reported is quite high. This warrants further investigation.  The plot function had no issues with the linear decision boundary.  We tried looking into the documentation and changing some of the optnios for plot.svm but this did not resolve the issue.  
+
+A brief google session revealed this type of issue has come up before 
+
+http://grokbase.com/t/r/r-help/127s7jrj5x/r-only-one-class-shown-in-svm-plot
+

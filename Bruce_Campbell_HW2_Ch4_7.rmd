@@ -1,0 +1,72 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 4
+
+##Problem 7
+Suppose that we wish to predict whether a given stock will issue a
+dividend this year ("Yes" or "No") based on X, last year's percent
+profit.We examine a large number of companies and discover that the
+mean value of X for companies that issued a dividend was $\overline{X} = 10$,
+while the mean for those that didn't was $\overline{x} = 0$. In addition, the
+variance of X for these two sets of companies was $\hat{\sigma^2} = 36$. Finally,
+80% of companies issued dividends. Assuming that X follows a normal
+distribution, predict the probability that a company will issue
+a dividend this year given that its percentage profit was X = 4 last
+year.
+
+
+Let's denote our 2 classes 0,1 where 0 indicates no dividend and 1 indicates a dividend. Then 
+we will need to calculate the posterior probability $P(Y=1 | X=4)$.  We are given all of the information we need to 
+do this.  The prior probabilities are $\pi_1=0.8$ and $\pi_0=0.2$ and the likelihood of each class is given 
+by $N(\mu_1,\hat{\sigma})(x)$ where $\mu_1=10$ and $N(\mu_0,\hat{\sigma})$ where $\mu_0=0$ and $\hat{\sigma} = 36$ in both cases.
+$N(\mu,\sigma)(x)= \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (x-\mu)^2}$ is the normal distribution with mean $\mu$ and 
+variance $\hat{\sigma^2}$.
+
+Putting this all together into Bayes theorem
+
+$$P(Y=1 | X=4) = \frac {N(\mu_1,\hat{\sigma})(4) \pi_1}{N(\mu_1,\hat{\sigma})(4) \pi_1 + N(\mu_0,\hat{\sigma})(4) \pi_0 }$$
+
+```{r}
+
+mu_1=.1
+mu_0=0
+
+pi_1=.8
+pi_0=.2
+
+sigma_sq=36
+stdev_est=6
+
+x=4
+
+posterior_probability_of_dividend_given_x <- function(x,mu_1,mu_0,stdev_est, pi_1,pi_0)
+{
+  probability = ( dnorm(x, mean = mu_1, sd = stdev_est) * pi_1 ) /(  dnorm(x, mean = mu_1, sd = stdev_est) * pi_1  + dnorm(x, mean = mu_0, sd = stdev_est) * pi_0 )
+  return(probability)
+}
+  
+posterior_probability_of_dividend <- posterior_probability_of_dividend_given_x(x,mu_1,mu_0,stdev_est, pi_1,pi_0)
+
+```
+
+We have that the probability of a dividend in the event the $X=$ is ```r posterior_probability_of_dividend```.
+
+
+

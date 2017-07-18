@@ -1,0 +1,38 @@
+---
+title: "Bruce Campbell Final Project "
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+
+```{r }
+rm(list = ls())
+set.seed(7)
+
+setwd("C:/st-617/")
+
+## use read.csv2 since data fields are delimited by semicolons (;)
+
+cls=c(rep("numeric",11),"integer")
+
+wine.data <- read.csv2("FinalProject/winequality-red.csv")
+
+#Specifying the data type via colClasses did not work - so we sapply as.numeric to convert the factor data to numeric.  We may want to convert some of the variables to factors later - but for visualization of the raw features we should use numeric type. 
+wine.data[, c(1:12)] <- sapply(wine.data[, c(1:12)], as.numeric)
+
+DF <- wine.data
+
+```

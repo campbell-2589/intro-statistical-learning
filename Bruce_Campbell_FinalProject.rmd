@@ -1,0 +1,431 @@
+---
+title: "Bruce Campbell Final Project "
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+
+```{r }
+rm(list = ls())
+set.seed(7)
+
+setwd("C:/st-617/")
+
+## use read.csv2 since data fields are delimited by semicolons (;)
+
+cls=c(rep("numeric",11),"integer")
+
+wine.data <- read.csv2("FinalProject/winequality-red.csv")
+
+#Specifying the data type via colClasses did not work - so we sapply as.numeric to convert the factor data to numeric.  We may want to convert some of the variables to factors later - but for visualization of the raw features we should use numeric type. 
+wine.data[, c(1:12)] <- sapply(wine.data[, c(1:12)], as.numeric)
+
+DF <- wine.data
+
+```
+
+### Box plots of features by quality
+```{r}
+for ( i in 1:(ncol(wine.data)-1))
+{
+  feature = wine.data[,i]
+  featureName = names(wine.data)[i]
+  boxplot(feature~DF$quality,xlab = "Quality", ylab = featureName, main = featureName)
+}
+```
+
+
+###Heat Map - sorting by quality 
+```{r}
+DFHeatMap <- DF[order(DF$quality),]
+plot(DFHeatMap$quality)
+DFHeatMap$quality <- NULL
+dist.mat <- as.matrix( dist(scale(DFHeatMap,center = TRUE,scale = TRUE),method = "euclidian") )
+
+heatmap(dist.mat)
+```
+
+### K-means clustering
+
+```{r}
+DFOrdered <- DF[order(DF$quality),] 
+
+# Determine number of clusters. Here we calculate the 
+wss <- (nrow(DFOrdered)-1)*sum(apply(DFOrdered,2,var))
+for (i in 2:12)
+{
+  wss[i] <- sum(kmeans(DFOrdered, centers=i)$withinss)
+}
+
+plot(1:12, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+title("Sum of square distance to cluster centrod by cluster number \n We seek a kink in this plot to identify the correct number of clusters \n k in [3,8] seems like a good choice.")
+
+# Run k-means with k=6
+km.out =kmeans (DF,6, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+boxplot(cluster_kmean.label~DF$quality,xlab = "cluster", ylab = "quality", main = "Quality by Cluster number for k=6 in K-means")
+
+TB <- table(cluster_kmean.label, DF$quality)
+library(pander)
+pander(TB, caption="Cluster matchup by quality for kmeans k=6.  This is NOT a confusion matrix.  The cluster numbers are not indentified with quality.")
+
+# Run k-means with k=3
+km.out =kmeans (DF,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+quality_cat <- (ifelse(wine.data$quality<5,1,ifelse(wine.data$quality>6,3,2)))
+hist(cluster_kmean.label)
+boxplot(cluster_kmean.label~quality_cat,xlab = "cluster", ylab = "coase quality", main = "Quality by Cluster number for k=3 in K-means")
+
+boxplot(cluster_kmean.label~quality_cat)
+
+TB <- table(cluster_kmean.label, DF$quality)
+library(pander)
+pander(TB, caption="Cluster matchup by quality for kmeans k=3.  This is NOT a confusion matrix.  The cluster numbers are not indentified with quality.")
+
+# Run k-means with k=4
+km.out =kmeans (DF,4, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, DF$quality)
+library(pander)
+pander(TB, caption="Cluster matchup by quality for kmeans k=4.  This is NOT a confusion matrix.  The cluster numbers are not indentified with quality.")
+
+```
+
+We split into training and test sets for now.  Notice that there are very few points in the extremes of quality.  There are arguments for and against splitting the extremes.  The features for those sample points could help or hurt a classifyer in the middle ranges of quality.  It's standard to split the data into training and test sets, but we'd like to reserve the right to revisit how we handle the classes with low counts at the end of the analysis.    
+
+```{r}
+#train <- sample(nrow(DF), floor(nrow(DF)* 2/3))
+
+#write.csv(train,file = "train.sample.csv",row.names = FALSE ,quote = FALSE)
+
+#Check that it works 
+train <- as.integer(unlist(read.csv("train.sample.csv",header = TRUE)))
+
+DFTrain <-DF[train,]
+
+DFTest <-DF[-train,]
+
+TDTrain <- table(DFTrain$quality)
+
+TDTest <- table(DFTest$quality)
+
+ratio.class <- TDTrain / TDTest
+
+library(pander)
+pander(TDTrain, caption = "Distribution of quality for training sample")
+
+pander(TDTest, caption = "Distribution of quality for test sample")
+
+```
+
+
+
+### LDA 
+```{r}
+library (MASS)
+lda.fit=lda(quality~. ,data=DFTrain)
+lda.fit
+lda.pred=predict (lda.fit , DFTest)
+lda.class =lda.pred$class
+TD <- table(lda.class ,DFTest$quality)
+pander(TD)
+ACC_lda = (sum(diag(as.array(TD))))/ length(DFTest$quality)
+```
+
+The accuracy ```r ACC_lda``` is not great - but we see that there is some good overall agreement in the 5-6 and 6-7 range.  We also note that NO low quality wines were classified as high quality and that no high quality wines were classified as low quality. We might consider three level factor grouping quality {3,4}, {5,6}, {7,8}
+
+```{r}
+DFCoarse <-DF
+DFCoarse$quality_cat <- ifelse(wine.data$quality<5,'LOW',ifelse(wine.data$quality>6,'HIGH','MEDIUM'))
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFCoarseTest <-DFCoarse[-train,] 
+
+lda.fit=lda(quality_cat~. ,data=DFCoarseTrain)
+lda.fit
+lda.pred=predict (lda.fit , DFCoarseTest)
+lda.class =lda.pred$class
+TD <- table(lda.class ,DFCoarseTest$quality)
+pander(TD)
+ACC_lda_coarse = (sum(diag(as.array(TD))))/ length(DFTest$quality)
+```
+We see the accuracy ```r ACC_lda_coarse``` has improved by coalescing the quality levels. 
+
+### Fit a two class SVM classification model
+
+```{r}
+#We do a logistic classification for comparison
+
+DFCoarse <-DF
+DFCoarse$quality_cat <- ifelse(wine.data$quality<=5,0,1)
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFCoarseTest <-DFCoarse[-train,] 
+
+glm.fit <- glm(quality_cat~.,data =DFCoarseTrain,family=binomial )
+summary(glm.fit)
+glm.probs =predict (glm.fit ,DFCoarseTest,type ="response")
+
+glm.pred=rep (0 ,nrow(DFCoarseTest))
+glm.pred[glm.probs >.5]=1
+TB <- table(glm.pred ,DFCoarseTest$quality_cat)
+pander(TB,caption="Logistic Regression")
+ACC_glm_binomial = (TB[1]+TB[4])/ length(DFCoarseTest$quality_cat)
+Specificity = TB[1]/sum(DFCoarseTest$quality_cat ==0)
+Sensitivity = TB[4]/sum(DFCoarseTest$quality_cat ==1)
+
+#### We require a categorical response for the e1071 package so the data frame for the 2 class SVM is regenerated here
+
+DFCoarse <-DF
+DFCoarse$quality_cat <- as.factor(ifelse(wine.data$quality<=5,'LOW','HIGH'))
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFCoarseTest <-DFCoarse[-train,] 
+
+library (e1071)
+
+tune.svm=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="linear",ranges =list(cost=c(0.001 , 0.01, 0.1, 1,5,10,100) ))
+
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DFCoarseTest)
+TB <- table(svm.pred ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Linear_SVM = (TB[1]+TB[4])/ length(DFCoarseTest$quality_cat)
+
+plot(svm.fit,DFCoarseTrain,fixed.acidity~sulphates)
+plot(svm.fit,DFCoarseTrain,density~volatile.acidity)
+
+```
+We see that we need to use a non linear kernel. We train a non linear SVM below using the 
+built in cross validation method tune to optimize the cost and gamma hyper-parameters
+
+
+```{r}
+gamma_default <- 1/(ncol(DFCoarseTrain)-1)
+gamma_list <-((1:10)/5)*gamma_default
+degree_list  <- c(2,3,4,5) # For Polynomial Kernels
+cost_list <- c(0.001 , 0.01, 0.1, 1,5,10,100)
+
+tune.svm=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="radial",ranges =list(gamma=gamma_list,cost=cost_list ))
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DFCoarseTest)
+TB <- table(svm.pred ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Radial_SVM = (TB[1]+TB[4])/ length(DFCoarseTest$quality_cat)
+
+#Beware - these plots may have a bug for the non linear svm!
+
+plot(svm.fit,DFCoarseTrain,fixed.acidity~sulphates)
+plot(svm.fit,DFCoarseTrain,density~volatile.acidity)
+
+```
+
+For the SVM trained with a kernel using the radial basis similarity function the accuracy has gone from ```r ACC_Linear_SVM``` to ```r ACC_Radial_SVM```.   
+
+```{r}
+
+tune.svm=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="polynomial",ranges =list(gamma=gamma_list,cost=cost_list,degree=degree_list) )
+
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DFCoarseTest)
+TB <- table(svm.pred ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Polynomial_SVM = (TB[1]+TB[4])/ length(DFCoarseTest$quality_cat)
+#Beware - these plots may have a bug for the non linear svm!
+
+plot(svm.fit,DFCoarseTrain,fixed.acidity~sulphates)
+plot(svm.fit,DFCoarseTrain,density~volatile.acidity)
+```
+
+The ploynomial svm tuned to use the best degree,gamma, and cost yielded an accuracy of ```r ACC_Polynomial_SVM```
+
+Now we try the nu-svm
+
+```{r}
+
+tune.svm=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="radial",type="nu-classification",ranges =list(gamma=gamma_list,cost=cost_list ))
+
+svm.fit <-tune.svm$best.model
+
+svm.pred <- predict(svm.fit, DFCoarseTest)
+TB <- table(svm.pred ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Radial_nuSVM = (TB[1]+TB[4])/ length(DFCoarseTest$quality_cat)
+
+#Beware - these plots may have a bug for the non linear svm!
+
+plot(svm.fit,DFCoarseTrain,fixed.acidity~sulphates)
+plot(svm.fit,DFCoarseTrain,density~volatile.acidity)
+
+```
+
+
+
+```{r}
+DFCoarse <-DF
+DFCoarse$quality_cat <- factor(ifelse(wine.data$quality<5,'LOW',ifelse(wine.data$quality>6,'HIGH','MED')))
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFCoarseTest <-DFCoarse[-train,]
+
+gamma_default <- 1/(ncol(DFCoarseTrain)-1)
+gamma_list <-((1:10)/5)*gamma_default
+cost_list=c(0.001 , 0.01, 0.1, 1,5,10,100)
+
+tune.svm.quality_cat=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="polynomial",ranges =list(gamma=gamma_list,cost=cost_list ))
+svm.fit.quality_cat <-tune.svm.quality_cat$best.model
+
+svm.pred.quality_cat <- predict(svm.fit.quality_cat, DFCoarseTest)
+TB <- table(svm.pred.quality_cat ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Multiclass = (sum(diag(TB)))/ length(DFCoarseTest$quality_cat)
+
+```
+
+
+```{r}
+
+method.accuracy <- data.frame(method = c("Multiclass SVM 3 class","svm rbf nu 2 class","lda 3 class","lda 6 class","glm 2 class","linear svm 2 class","rbf svm 2 class","polynomial svm 2 class"), accuracy=c(ACC_Multiclass, ACC_Radial_nuSVM,ACC_lda_coarse,ACC_lda,ACC_glm_binomial,ACC_Linear_SVM,ACC_Radial_SVM,ACC_Polynomial_SVM))
+
+method.accuracy <- method.accuracy[order(method.accuracy$accuracy,decreasing = TRUE),]
+
+pander(method.accuracy, caption = "Accuracy by Method")
+
+```
+
+### Now we train a reduced model choosing the significant variables from the glm
+
+```{r}
+DFCoarse <-DF[,c("fixed.acidity","volatile.acidity","chlorides","total.sulfur.dioxide","density","sulphates","alcohol")]
+DFCoarse$quality_cat <- factor(ifelse(wine.data$quality<5,'LOW',ifelse(wine.data$quality>6,'HIGH','MED')))
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFCoarseTest <-DFCoarse[-train,]
+
+tune.svm.quality_cat=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="polynomial",ranges =list(gamma=gamma_list,cost=cost_list,degree=degree_list ))
+svm.fit.quality_cat <-tune.svm.quality_cat$best.model
+
+svm.pred.quality_cat <- predict(svm.fit.quality_cat, DFCoarseTest)
+TB <- table(svm.pred.quality_cat ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Multiclass_Polynomial_subset = (sum(diag(TB)))/ length(DFCoarseTest$quality_cat)
+
+ACC_Class_HIGH = diag(TB)[1] / sum(DFCoarseTest$quality_cat=='HIGH')
+
+ACC_Class_LOW = diag(TB)[2] / sum(DFCoarseTest$quality_cat=='LOW')
+
+ACC_Class_MED = diag(TB)[3] / sum(DFCoarseTest$quality_cat=='MED')
+
+pander(data.frame(class=c("LOW","MED","HIGH"),accuracy= c(ACC_Class_LOW,ACC_Class_MED,ACC_Class_HIGH)),caption = "Multiclass Polynomial Subset SVM accuracy by class")
+```
+
+#Looking at the accuracy across the classes we see that a 2 class model may be preferrable.
+
+There are ways to reduce the error introduced by class skew such as limiting the number of the over-represented class, or tuning the model to enhance the sensitivity or specificity of some classes.  If there a string desire to have more than two classes - we'd consider applying these methods to the multiple classifyer one-versus all approach.  We could train the 2 class classifiers for the classes with low representation to favor the underrepresented class and use a voting scheme for the final classification. 
+
+It's possible that we could build a generic classifier for the middle levels of quality and a separate classifier for the edge cases of very low and very high as an anomaly detection problem. In this case we would apply both classifiers in sucsession and use the result of the anomaly detector is there was a positive classification for low or high quality. The anomaly detector itself could be two separate classifiers - one for quality 3 and one for quality 8.
+
+## Training with balanced test set
+### Multiclass RBF Subset Balanced Training
+```{r}
+DFCoarse <-DF[,c("fixed.acidity","volatile.acidity","chlorides","total.sulfur.dioxide","density","sulphates","alcohol")]
+
+DFCoarse<- data.frame(scale(DF,center = TRUE,scale = TRUE))
+DFCoarse$quality_cat <- factor(ifelse(wine.data$quality<5,'LOW',ifelse(wine.data$quality>6,'HIGH','MED')))
+DFCoarse$quality <-NULL
+DFCoarseTrain <-DFCoarse[train,]
+DFM <- DFCoarseTrain[DFCoarseTrain$quality_cat=='MED',]
+DFM <-DFM[1:200,]
+DFL <- DFCoarseTrain[DFCoarseTrain$quality_cat=='LOW',]
+DFH <- DFCoarseTrain[DFCoarseTrain$quality_cat=='HIGH',]
+DFCoarseTrain<-rbind(DFL,DFM,DFH)
+DFCoarseTest <-DFCoarse[-train,]
+
+gamma_default <- 1/(ncol(DFCoarseTrain)-1)
+gamma_list <-((1:10)/5)*gamma_default
+cost_list <-c(0.001 , 0.01, 0.1, 1,5,10,100)
+degree_list <-c(2,3,4,5)
+
+tune.svm.quality_cat=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="radial",ranges =list(gamma=gamma_list,cost=cost_list ))
+svm.fit.quality_cat <-tune.svm.quality_cat$best.model
+
+svm.pred.quality_cat <- predict(svm.fit.quality_cat, DFCoarseTest)
+TB <- table(svm.pred.quality_cat ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Multiclass_Polynomial_subset_balanced = (sum(diag(TB)))/ length(DFCoarseTest$quality_cat)
+
+ACC_Class_HIGH_Polynomial_subset_balanced = diag(TB)[1] / sum(DFCoarseTest$quality_cat=='HIGH')
+
+ACC_Class_LOW_Polynomial_subset_balanced = diag(TB)[2] / sum(DFCoarseTest$quality_cat=='LOW')
+
+ACC_Class_MED_Polynomial_subset_balanced = diag(TB)[3] / sum(DFCoarseTest$quality_cat=='MED')
+
+pander(data.frame(class=c("LOW","MED","HIGH"),accuracy= c(ACC_Class_LOW_Polynomial_subset_balanced,ACC_Class_MED_Polynomial_subset_balanced,ACC_Class_HIGH_Polynomial_subset_balanced)),caption = "Multiclass Polynomial Subset Balanced SVM accuracy by class")
+
+```
+
+### Multiclass polynomial Subset Balanced Training
+
+```{r}
+tune.svm.quality_cat=tune(svm,quality_cat~., data=DFCoarseTrain , kernel ="polynomial",ranges =list(gamma=gamma_list,cost=cost_list,degree=degree_list ))
+svm.fit.quality_cat <-tune.svm.quality_cat$best.model
+
+svm.pred.quality_cat <- predict(svm.fit.quality_cat, DFCoarseTest)
+TB <- table(svm.pred.quality_cat ,DFCoarseTest$quality_cat )
+pander(TB)
+
+ACC_Multiclass_RBF_subset_balanced = (sum(diag(TB)))/ length(DFCoarseTest$quality_cat)
+
+ACC_Class_HIGH_RBF_subset_balanced = diag(TB)[1] / sum(DFCoarseTest$quality_cat=='HIGH')
+
+ACC_Class_LOW_RBF_subset_balanced = diag(TB)[2] / sum(DFCoarseTest$quality_cat=='LOW')
+
+ACC_Class_MED_RBF_subset_balanced = diag(TB)[3] / sum(DFCoarseTest$quality_cat=='MED')
+
+pander(data.frame(class=c("LOW","MED","HIGH"),accuracy= c(ACC_Class_LOW_RBF_subset_balanced,ACC_Class_MED_RBF_subset_balanced,ACC_Class_HIGH_RBF_subset_balanced)),caption = "Multiclass RBF Subset Balanced SVM accuracy by class")
+```
+
+```{r}
+method.accuracy <- data.frame(method = c("Multiclass RBF Subset Balanced SVM","Multiclass Polynomial Subset Balanced SVM","Multiclass Polynomial SVM 3 class","svm rbf nu 2 class","lda 3 class","lda 6 class","glm 2 class","linear svm 2 class","rbf svm 2 class","polynomial svm 2 class"), accuracy=as.numeric(c(ACC_Multiclass_RBF_subset_balanced,ACC_Multiclass_Polynomial_subset_balanced,ACC_Multiclass,ACC_Radial_nuSVM,ACC_lda_coarse,ACC_lda,ACC_glm_binomial,ACC_Linear_SVM,ACC_Radial_SVM,ACC_Polynomial_SVM)))
+
+method.accuracy <- method.accuracy[order(method.accuracy$accuracy,decreasing = FALSE),]
+
+pander(method.accuracy, caption = "Accuracy by Method")
+```
+
+
+```{r}
+
+method.accuracy <- data.frame(method = c("Multiclass RBF Subset Balanced SVM","Multiclass Polynomial Subset Balanced SVM"), accuracy=as.numeric(c(ACC_Multiclass_RBF_subset_balanced,ACC_Multiclass_Polynomial_subset_balanced)))
+method.accuracy <- method.accuracy[order(method.accuracy$accuracy,decreasing = FALSE),]
+pander(method.accuracy, caption = "Accuracy by Method")
+```

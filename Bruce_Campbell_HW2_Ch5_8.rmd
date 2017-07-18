@@ -1,0 +1,143 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=4)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 5
+
+##Problem 8
+We will now perform cross-validation on a simulated data set.
+### a) 
+Generate a simulated data set as follows:
+```{r}
+set.seed (1)
+# y=rnorm (100)  #<------------- Not sure why this is necessary
+x=rnorm (100)
+y=x-2* x^2+  rnorm (100)
+```
+In this data set, what is n and what is p? 
+
+$n=100$ and $p=2$
+
+Write out the model used to generate the data in equation form.
+
+$$Y=\beta_1 X + \beta_2 X^2 + \epsilon$$
+
+Where $\beta_1=1$ , $\beta_2=-2$, and $\epsilon=N(0,1)$
+
+### b) 
+Create a scatterplot of X against Y . Comment on what you find.
+
+```{r}
+plot(x,y)
+```
+
+We see the quadratic realtionship described in the model corrupted by the noise. 
+
+
+### c) 
+Set a random seed, and then compute the LOOCV errors that
+result from fitting the following four models using least squares:
+
+i. $$Y = \beta_0 + \beta_1 X + \epsilon$$
+ii. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \epsilon$$
+iii. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \epsilon$$
+iv. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \beta_4 X^4 + \epsilon$$
+
+```{r}
+set.seed(17)
+library(boot)
+
+loocv_rates <- data.frame(model=character(),LOOCV_ERROR_delta1=numeric(),LOOCV_ERROR_delta2=numeric())
+DF<- data.frame(X=x,Y=y)
+
+glm.fit_1 <- glm(Y~X,data = DF) 
+coef(glm.fit_1)
+cv.err_1<- cv.glm(DF,glm.fit_1)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X",LOOCV_ERROR_delta1=cv.err_1$delta[1], LOOCV_ERROR_delta2=cv.err_1$delta[2]))
+
+glm.fit_2 <- glm(Y~X+I(X^2),data = DF) 
+coef(glm.fit_2)
+cv.err_2<- cv.glm(DF,glm.fit_2)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2",LOOCV_ERROR_delta1=cv.err_2$delta[1], LOOCV_ERROR_delta2=cv.err_2$delta[2]))
+
+
+glm.fit_3 = glm(Y~X+I(X^2)+I(X^3),data = DF) 
+cv.err_3=cv.glm(DF,glm.fit_3)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3",LOOCV_ERROR_delta1=cv.err_3$delta[1], LOOCV_ERROR_delta2=cv.err_3$delta[2]))
+
+
+glm.fit_4 = glm(Y~X+I(X^2)+I(X^3)+I(X^4),data = DF) 
+cv.err_4=cv.glm(DF,glm.fit_4)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3+X^4",LOOCV_ERROR_delta1=cv.err_4$delta[1], LOOCV_ERROR_delta2=cv.err_4$delta[2]))
+
+library(pander)
+pander(loocv_rates)
+```
+
+### d) 
+Repeat (c) using another random seed, and report your results.
+Are your results the same as what you got in (c)? Why?
+
+```{r}
+set.seed(173)
+library(boot)
+
+loocv_rates <- data.frame(model=character(),LOOCV_ERROR_delta1=numeric(),LOOCV_ERROR_delta2=numeric())
+DF<- data.frame(X=x,Y=y)
+
+glm.fit_1 <- glm(Y~X,data = DF) 
+coef(glm.fit_1)
+cv.err_1<- cv.glm(DF,glm.fit_1)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X",LOOCV_ERROR_delta1=cv.err_1$delta[1], LOOCV_ERROR_delta2=cv.err_1$delta[2]))
+
+glm.fit_2 <- glm(Y~X+I(X^2),data = DF) 
+coef(glm.fit_2)
+cv.err_2<- cv.glm(DF,glm.fit_2)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2",LOOCV_ERROR_delta1=cv.err_2$delta[1], LOOCV_ERROR_delta2=cv.err_2$delta[2]))
+
+
+glm.fit_3 = glm(Y~X+I(X^2)+I(X^3),data = DF) 
+cv.err_3=cv.glm(DF,glm.fit_3)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3",LOOCV_ERROR_delta1=cv.err_3$delta[1], LOOCV_ERROR_delta2=cv.err_3$delta[2]))
+
+
+glm.fit_4 = glm(Y~X+I(X^2)+I(X^3)+I(X^4),data = DF) 
+cv.err_4=cv.glm(DF,glm.fit_4)
+summary(glm.fit_4)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3+X^4",LOOCV_ERROR_delta1=cv.err_4$delta[1], LOOCV_ERROR_delta2=cv.err_4$delta[2]))
+
+library(pander)
+pander(loocv_rates)
+```
+
+These are the same results.  The reason for this is that the LOOCV algorithm is deterministic.  It trains n models with n-1 training points reserving the nth point as a test point.  There is no random splitting of the training and test data.  
+
+### e) 
+Which of the models in (c) had the smallest LOOCV error? Is
+this what you expected? Explain your answer.
+
+The model with the lowest LOOCV error rate is the quadratic model.  This is as expected since the data was generated via a quadratic relationship.
+
+
+### f) 
+Comment on the statistical significance of the coefficient estimates
+that results from fitting each of the models in (c) using
+least squares. Do these results agree with the conclusions drawn based on the cross-validation results?
+
+The p-values for the third and fourth coefficient are not significant.  This is consistent with the cross validation results where the quadratic model 
+had the lowest error.

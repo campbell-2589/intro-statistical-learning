@@ -1,0 +1,266 @@
+---
+title: "Bruce Campbell ST-617 Homework 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+#Chapter 10
+
+##Problem 10
+```In this problem, you will generate simulated data, and then perform
+PCA and K-means clustering on the data.```
+
+### a) 
+```Generate a simulated data set with 20 observations in each of
+three classes (i.e. 60 observations total), and 50 variables.
+Hint: There are a number of functions in R that you can use to
+generate data. One example is the rnorm() function; runif() is
+another option. Be sure to add a mean shift to the observations
+
+
+```{r}
+library(MASS)
+X1 <- mvrnorm(20,mu = rnorm(50,1),Sigma = diag(runif(50)))
+
+X2 <- mvrnorm(20,mu = rnorm(50,5),Sigma = diag(runif(50)))
+
+X3 <- mvrnorm(20,mu = rnorm(50,7),Sigma = diag(runif(50)))
+
+
+class.label <- rbind(matrix(data=1,nrow =20,ncol=1),matrix(data=2,nrow =20,ncol=1),matrix(data=3,nrow =20,ncol=1))
+
+DF <- rbind(X1,X2,X3)
+
+dist.mat <- as.matrix( dist(DF,method = "euclidian") )
+
+heatmap(dist.mat)
+
+
+```
+
+The heat map and dendrogarm show us we have adequate class separation in our simulated data set. 
+
+
+### b) 
+```Perform PCA on the 60 observations and plot the first two principal
+component score vectors. Use a different color to indicate
+the observations in each of the three classes. If the three classes
+appear separated in this plot, then continue on to part (c). If
+not, then return to part (a) and modify the simulation so that
+there is greater separation between the three classes. Do not
+continue to part (c) until the three classes show at least some
+separation in the first two principal component score vectors.```
+
+We've ensured there is good class separation - so we expect the PCA to demonstrate this.
+
+```{r}
+pr.out =prcomp (DF , scale =TRUE)
+biplot (pr.out , scale =0,col=c(1,2))
+
+pr.var =pr.out$sdev ^2
+
+pve=pr.var/sum(pr.var )
+
+plot(pve)
+```
+
+
+
+### c)
+```Perform K-means clustering of the observations with K = 3.
+How well do the clusters that you obtained in K-means clustering
+compare to the true class labels?
+Hint: You can use the table() function in R to compare the true
+class labels to the class labels obtained by clustering. Be careful
+how you interpret the results: K-means clustering will arbitrarily
+number the clusters, so you cannot simply check whether the true
+class labels and clustering labels are the same.```
+
+```{r}
+km.out =kmeans (DF,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+K-means with $k=3$ correctly found all three clusters.
+
+### d) 
+```Perform K-means clustering with K = 2. Describe your results.```
+
+```{r}
+km.out =kmeans (DF,2, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+We see that kmeans with $k=2$ found cluster 1 and merged cluster 2 and cluster 3 into one cluser.
+
+
+### e) 
+```Now perform K-means clustering with K = 4, and describe your
+results.```
+
+```{r}
+km.out =kmeans (DF,4, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+K-means with $k=4$ correctly identified clusters 2 and 3, and split cluster 1 into two clusters - one of size 7 and one of size 13.
+
+
+### f) 
+```Now perform K-means clustering with K = 3 on the first two
+principal component score vectors, rather than on the raw data.
+That is, perform K-means clustering on the 60 × 2 matrix of
+which the first column is the first principal component score
+vector, and the second column is the second principal component
+score vector. Comment on the results.```
+
+```{r}
+pr.1and2 <- pr.out$x[,1:2]
+
+km.out =kmeans (pr.1and2,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+We see that performing K-means on the first two principal components correctly identifies all the clusters.  This is expected - even if we had chosen our mean vectors in the sumulated data set such that there was more class overlap.  
+
+```{r} 
+sum(pve[1:2])
+```
+
+We see that most of the variance in this data set is captured by the first two principal components. 
+
+
+### g) 
+```Using the scale() function, perform K-means clustering with
+K = 3 on the data after scaling each variable to have standard
+deviation one. How do these results compare to those obtained
+in (b)? Explain.```
+
+```{r}
+km.out =kmeans (scale(DF,scale = TRUE),3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+Again, we see perfect class identification.  If the classes were generated with more overlap - we would expect that scaling would improve the results.  Below we experiment with finding a data set that better demonstates the principles the exercise is trying to show.
+
+```{r}
+X1 <- mvrnorm(20,mu = rnorm(50,1),Sigma = diag(runif(50)))
+X2 <- mvrnorm(20,mu = rnorm(50,1),Sigma = diag(runif(50)))
+X3 <- mvrnorm(20,mu = rnorm(50,1),Sigma = diag(runif(50)))
+
+class.label <- rbind(matrix(data=1,nrow =20,ncol=1),matrix(data=2,nrow =20,ncol=1),matrix(data=3,nrow =20,ncol=1))
+
+DF <- rbind(X1,X2,X3)
+
+dist.mat <- as.matrix( dist(DF,method = "euclidian") )
+
+heatmap(dist.mat)
+
+km.out =kmeans (DF,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+
+#Interesting that setting the means to the same value did not give the class overlap to cause clustering to get even one label wrong. We look into the way we generate the covariance matrix and mean vectors next
+M <- diag(runif(50))
+v <-rnorm(50,1)
+X1 <- mvrnorm(20,mu = v,Sigma = M)
+X2 <- mvrnorm(20,mu = v*(1.1),Sigma = M)
+X3 <- mvrnorm(20,mu = v*(0.9),Sigma = M)
+
+class.label <- rbind(matrix(data=1,nrow =20,ncol=1),matrix(data=2,nrow =20,ncol=1),matrix(data=3,nrow =20,ncol=1))
+
+DF <- rbind(X1,X2,X3)
+
+dist.mat <- as.matrix( dist(DF,method = "euclidian") )
+
+heatmap(dist.mat)
+
+km.out =kmeans (DF,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+By generating the classes with the same random mean vector and usng an offset from that to separate the classes we have been able to introduce some class overlap in 50 dimensions. 
+
+This plot demonstated the effect of dimension increase.  In 2 dimensions we get class overlap using the method at the beginning of the problem. 
+
+```{r}
+plot(mvrnorm(20,mu = rnorm(2,0),Sigma = diag(runif(2))),xlim=c(-5, 5),ylim=c(-5, 5))
+points(mvrnorm(20,mu = rnorm(2,0),Sigma = diag(runif(2))),col='red')
+```
+
+
+```{r}
+X1 <- mvrnorm(20,mu = rnorm(2,0),Sigma = diag(runif(2)))
+X2 <- mvrnorm(20,mu = rnorm(2,0),Sigma = diag(runif(2)))
+X3 <- mvrnorm(20,mu = rnorm(2,0),Sigma = diag(runif(2)))
+
+class.label <- rbind(matrix(data=1,nrow =20,ncol=1),matrix(data=2,nrow =20,ncol=1),matrix(data=3,nrow =20,ncol=1))
+
+DF <- rbind(X1,X2,X3)
+
+dist.mat <- as.matrix( dist(DF,method = "euclidian") )
+
+heatmap(dist.mat)
+
+km.out =kmeans (DF,3, nstart =20)
+
+cluster_kmean.label <- km.out$cluster
+
+TB <- table(cluster_kmean.label, class.label)
+library(pander)
+pander(TB)
+```
+
+The code above shows the results of k-means in 2 dimensions.  

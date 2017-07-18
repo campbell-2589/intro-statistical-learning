@@ -1,0 +1,106 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 3
+
+##Problem 13
+
+### a ) 
+```{r}
+rm(list = ls())
+
+X <- rnorm(100,0,1)
+
+epsilon <- rnorm(100,0,0.25)
+
+Y <- -1 + 0.5 * X + epsilon
+```
+
+### c)
+The length of y is 100, $\beta_0=  -1$ and $\beta_1 = 0.5$
+
+### d)
+
+`r plot(X,Y,pch='+',col='red')`
+We note that there is a positive linear relation between X and Y, that the midpoint of theh range of X is rougly 0 and the midpoint of the range of Y is rougly -1. We also note the dispersion of the data along the diagonal is about $\frac{1}{4}$
+
+### e) 
+
+```{r}
+DF <- data.frame( predictor = X, response = Y)
+lm.fit <- lm( response ~ predictor , data=DF)
+summary(lm.fit)
+```
+
+The estimated values of the regression coefficients are very close to the actual values of -1 and .5.
+
+### f) 
+```{r}
+plot(X,Y,pch='*')
+abline(lm.fit,col='red',lwd=3)
+abline(-1,.5,col='blue',lwd=2)
+legend("topleft", title.col = "black",
+  c("data","fit", "population" ),
+  text.col =c("black","red", "blue"),
+  text.font = 1, cex = 1)
+```
+
+
+### g) 
+```{r}
+lm_poly.fit <- lm( response ~ predictor + I(predictor^2) , data=DF)
+summary(lm_poly.fit)
+
+```
+
+There is very little evidence that adding a ploynomial term to the regression has improves the fit. RSE and R squared were not markedly affected by the addition of the quadratic term.  We also note the pvalue of the quadratic term is high and the coefficient is near 0, reflecting it's insignificance in the model. 
+
+### h) Reducing error
+
+```{r}
+Xr <- rnorm(100,0,1)
+epsilon <- rnorm(100,0,0.1)
+Yr <- -1 + 0.5 * Xr + epsilon
+DF <- data.frame( predictor = Xr, response = Yr)
+lm_r.fit <- lm( response ~ predictor , data=DF)
+summary(lm_r.fit)
+plot(Xr,Yr,pch='*')
+abline(lm_r.fit,col='red',lwd=3)
+abline(-1,.5,col='blue',lwd=2)
+legend("topleft", title.col = "black",
+  c("data","fit", "population" ),
+  text.col =c("black","red", "blue"),
+  text.font = 1, cex = 1)
+
+```
+
+When we reduce the error in the data the median residual and RES are decreased. Mutliple R square is increased.  All indicates of inproved performance in the fit. 
+
+### i)
+
+Confidence interval for the first model
+```{r}
+confint(lm.fit)
+```
+
+Confidence interval for the second model
+```{r}
+confint(lm_r.fit)
+```
+As expected our confidence interval in the second model is smaller than the first.

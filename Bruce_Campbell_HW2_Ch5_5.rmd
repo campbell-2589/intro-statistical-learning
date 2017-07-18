@@ -1,0 +1,151 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 5
+
+##Problem 5
+In Chapter 4, we used logistic regression to predict the probability of
+default using income and balance on the Default data set. We will
+now estimate the test error of this logistic regression model using the
+validation set approach. Do not forget to set a random seed before
+beginning your analysis.
+
+## a) 
+Fit a logistic regression model that uses income and balance to
+predict default.
+
+```{r }
+rm(list = ls())
+library(ISLR)
+attach(Default)
+glm.fit = glm(default~income+balance,data=Default, family =binomial)
+summary(glm.fit)
+```
+
+### b) 
+Using the validation set appbroach, estimate the test error of this
+model. In order to do this, you must perform the following steps:
+i. Split the sample set into a training set and a validation set.
+ii. Fit a multiple logistic regression model using only the training
+observations.
+iii. Obtain a prediction of default status for each individual in
+the validation set by computing the posterior probability of
+default for that individual, and classifying the individual to
+the default category if the posterior probability is greater
+than 0.5.
+iv. Compute the validation set error, which is the fraction of
+the observations in the validation set that are misclassified.
+
+```{r}
+set.seed(7)
+
+train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+DF<-Default
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+glm.fit = glm(default~income+balance,data=DFTrain, family =binomial)
+summary(glm.fit)
+
+glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+contrasts(DFTest$default)
+glm.pred=rep ("No " ,nrow(DFTest))
+glm.pred[glm.probs >.5]=" Yes"
+TB<-table(glm.pred ,DFTest$default )
+ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+
+modelsDF <-data.frame(iteration=1,Accuracy=1-ACC_Validation)
+
+```
+
+### c)
+Repeat the process in (b) three times, using three different splits
+of the observations into a training set and a validation set. Comment
+on the results obtained.
+```{r}
+attach(Default)
+modelsDF <- data.frame(iteration=numeric(), Accuracy=numeric())
+
+for(i in 1: 3)
+{
+  train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+  DF<-Default
+  DFTrain <-DF[train,]
+  DFTest <-DF[-train,]
+  
+  glm.fit = glm(default~income+balance,data=DFTrain, family =binomial)
+  summary(glm.fit)
+  
+  glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+  glm.pred=rep ("No " ,nrow(DFTest))
+  glm.pred[glm.probs >.5]=" Yes"
+  TB<-table(glm.pred ,DFTest$default )
+  ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+  modelsDF <-rbind(modelsDF,data.frame(iteration=i,Accuracy=1-ACC_Validation))
+}
+library(pander)
+pander(modelsDF)
+```
+
+The validation test set error rates are all very similar.  This indicated the model is stable with respect to the random split into test and training
+sets and that the validation approach may be vaible in this instance althugh we'd probably want to do more iterations to confirm this.
+
+### d) 
+Now consider a logistic regression model that predicts the probability
+of default using income, balance, and a dummy variable
+for student. Estimate the test error for this model using the validation
+set approach. Comment on whether or not including a
+dummy variable for student leads to a reduction in the test error
+rate.
+```{r}
+attach(Default)
+modelsDFAug <- data.frame(iteration=numeric(), Accuracy=numeric())
+
+for(i in 1: 3)
+{
+  train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+  DF<-Default
+  DFTrain <-DF[train,]
+  DFTest <-DF[-train,]
+  
+  glm.fit = glm(default~income+balance+student,data=DFTrain, family =binomial)
+  summary(glm.fit)
+  
+  glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+  glm.pred=rep ("No " ,nrow(DFTest))
+  glm.pred[glm.probs >.5]=" Yes"
+  TB<-table(glm.pred ,DFTest$default )
+  ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+  modelsDFAug <-rbind(modelsDFAug,data.frame(iteration=i,Accuracy=1-ACC_Validation))
+}
+library(pander)
+pander(modelsDFAug)
+```
+
+Including the student status as a predictor did not appear to change the validation set error rates - the change is the number of errors for each of the three runs is : 
+```{r}
+diff<- (modelsDFAug$Accuracy - modelsDF$Accuracy)*nrow(DFTest)
+pander(diff)
+```
+
+To make a more precise statement we'd run more iterations and compare the errors using a statistical test such as a t-test. 
+

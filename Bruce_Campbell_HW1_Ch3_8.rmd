@@ -1,0 +1,76 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 3
+
+##Problem 8
+
+### a ) 
+```{r}
+rm(list = ls())
+library(ISLR)
+library(pander)
+DF <-Auto
+pander(names(DF))
+lm.fit <- lm(mpg ~ horsepower , data=DF)
+summary(lm.fit)
+
+ Yhat <- function( beta0,beta1,predictor) 
+ {
+   result<- beta0+beta1*predictor
+   return(unname(result))
+ }
+ 
+ mpg_h98 <- Yhat(lm.fit$coefficients["(Intercept)"],lm.fit$coefficients["horsepower"],98)
+ 
+```
+
+
+We note that there is a negative repationship between horespower and mpg. When horsepower goes up mpg goes down. We note that the coefficients $\beta_0$ and $\beta_1$ are large compared to their standard errors and that the p-value of the t-statistic is very small
+
+The confidence intervals for the regression coefficients are not too 
+`r confint(lm.fit)`
+
+The predicted value of mpg for a horespower of 98 is `r mpg_h98` as calculated by our function above. Using the predict function we get the prediction intervals 
+```{r}
+predict(lm.fit,data.frame(horsepower=c(98)),interval = "prediction")
+```
+
+and confidance intervals for this point
+```{r}
+predict(lm.fit,data.frame(horsepower=c(98)),interval = "confidence")
+```
+
+
+### b)
+```{r}
+plot(DF$horsepower,DF$mpg)
+abline(lm.fit,col='red',lwd=4)
+```
+
+
+### c) Diagnostic plots
+
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit)
+```
+
+From the diagnostic plots we see that there are some high leverage points and that residuals are higher at the boundaries of the range of the perdictor. We also note some divergence from normality for the standardised residuals. 
+

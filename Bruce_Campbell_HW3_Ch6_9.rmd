@@ -1,0 +1,218 @@
+---
+title: "Bruce Campbell ST-617 Homework 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 6
+
+##Problem 9
+In this exercise, we will predict the number of applications received
+using the other variables in the College data set.
+
+### a) 
+Split the data set into a training set and a test set.
+```{r}
+rm(list = ls())
+library(ISLR)
+DF = College
+train=sample(nrow(DF), floor(nrow(DF)* 2/3))
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+```
+### b) 
+Fit a linear model using least squares on the training set, and
+report the test error obtained.
+```{r}
+names(DF)
+lm.fit <- lm(Apps ~ . , data=DF)
+summary(lm.fit)
+
+plot(predict (lm.fit), residuals (lm.fit))
+plot(predict (lm.fit), rstudent (lm.fit))
+plot(hatvalues (lm.fit ))
+
+
+plot(predict(lm.fit, DFTest)-DFTest$Apps)
+lm.test_mse <- mean((predict(lm.fit, DFTest) - DFTest$Apps)^2)
+
+mse_summary <- data.frame(method = "lm",MSE = lm.test_mse)
+```
+
+The test set for a linear model is 
+
+#### MSE = ```r lm.test_mse```
+
+### c) 
+Fit a ridge regression model on the training set, with $\lambda$ chosen
+by cross-validation. Report the test error obtained.
+
+```{r}
+library(glmnet)
+x_ridge=model.matrix (Apps~.,DFTrain )[,-1]
+y_ridge=DFTrain$Apps
+cv.out =cv.glmnet (x_ridge,y_ridge,alpha =0)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_ridge=glmnet (x_ridge,y_ridge,alpha =0,lambda = bestlam)
+predict (best_ridge ,type="coefficients",s=bestlam )
+
+
+x_ridge_test=model.matrix (Apps~.,DFTest )[,-1]
+y_ridge_test=DFTest$Apps
+
+ridge.pred=predict (best_ridge , newx=x_ridge_test)
+ridge.test_mse <- mean(( ridge.pred -y_ridge_test)^2)
+
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "ridge",MSE = ridge.test_mse))
+```
+
+
+The test set MSE for a ridge regression model where the regularization parameter is set by cross validation is
+
+#### MSE = ```r ridge.test_mse```
+
+
+### d) Fit a lasso model on the training set, with $\lambda$ chosen by crossvalidation.
+Report the test error obtained, along with the number
+of non-zero coefficient estimates.
+
+```{r}
+x_lasso=model.matrix (Apps~.,DFTrain )[,-1]
+y_lasso=DFTrain$Apps
+cv.out =cv.glmnet (x_lasso,y_lasso,alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )
+
+
+x_lasso_test=model.matrix (Apps~.,DFTest )[,-1]
+y_lasso_test=DFTest$Apps
+
+lasso.pred=predict (best_lasso , newx=x_lasso_test)
+lasso.test_mse <- mean(( lasso.pred -y_lasso_test)^2)
+
+coeff_lasso <- predict (best_lasso ,type="coefficients",s=bestlam )[1:18 ,]
+library(pander)
+pander(coeff_lasso)
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "lasso",MSE = lasso.test_mse))
+```
+
+The test set MSE for a lasso regression model where the regularization parameter is set by cross validation is
+
+#### MSE = ```r lasso.test_mse```
+
+All but one of the predictors was incuded in the lasso model with the best lambda selected by cross validation. 
+A more parsimonious model may help with inference so using the cross validation MSE chart we below we bump up lambda
+to $e^4.5$ to get a model with fewer predictors
+
+```{r}
+bestlam=exp(4.2)
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )
+
+
+x_lasso_test=model.matrix (Apps~.,DFTest )[,-1]
+y_lasso_test=DFTest$Apps
+
+lasso.pred=predict (best_lasso , newx=x_lasso_test)
+lasso.test_mse <- mean(( lasso.pred -y_lasso_test)^2)
+
+mse_summary <- rbind(mse_summary,data.frame(method = "lasso-reduced",MSE = lasso.test_mse))
+
+coeff_lasso <- predict (best_lasso ,type="coefficients",s=bestlam )[1:18 ,]
+library(pander)
+pander(coeff_lasso)
+```
+
+
+### e) 
+```Fit a PCR model on the training set, with M chosen by crossvalidation.
+Report the test error obtained, along with the value
+of M selected by cross-validation.```
+
+```{r}
+pcr.test_mse=1
+library (pls)
+pcr.fit=pcr(Apps~., data=DFTrain ,scale=TRUE ,validation ="CV")
+summary(pcr.fit )
+validationplot(pcr.fit ,val.type="MSEP")
+
+pcr.pred=predict (pcr.fit ,DFTest, ncomp =8)
+pcr.test_mse <- mean((pcr.pred -DFTest$Apps)^2)
+
+mse_summary <- rbind(mse_summary,data.frame(method = "pcr",MSE = pcr.test_mse))
+```
+
+The test set MSE for a principal components regression is
+
+#### MSE = ```r pcr.test_mse```
+
+### f) 
+```Fit a PLS model on the training set, with M chosen by crossvalidation.
+Report the test error obtained, along with the value
+of M selected by cross-validation.```
+
+```{r}
+plsr.fit=plsr(Apps~., data=DFTrain ,scale=TRUE ,validation ="CV")
+summary(plsr.fit )
+validationplot(plsr.fit ,val.type="MSEP")
+
+plsr.pred=predict (plsr.fit ,DFTest, ncomp =8)
+plsr.test_mse <- mean((plsr.pred -DFTest$Apps)^2)
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "plsr",MSE = plsr.test_mse))
+```
+
+
+The test set MSE for a partial least quares regression is
+
+#### MSE = ```r plsr.test_mse```
+
+
+
+### g) 
+```Comment on the results obtained. How accurately can we predict
+the number of college applications received? Is there much
+difference among the test errors resulting from these five approaches?```
+
+
+```{r}
+pander(mse_summary)
+```
+
+We see the linear model is the best but that the lasso is competitive 
+```{r}
+
+plot(predict(lm.fit, DFTest)-DFTest$Apps,pch='*',col='red')
+points(plsr.pred -DFTest$Apps,pch="+",col='blue')
+points(lasso.pred -y_lasso_test,pch="#",col='green')
+legend("topleft", title.col = "black",
+  c("lm","plsr", "lasso" ),
+  text.col =c("red","blue", "green"),
+  text.font = 1, cex = 1)
+title(c("Y-Yhat for a selection of methods","Linear, Partial Least Squares, Lasso"))

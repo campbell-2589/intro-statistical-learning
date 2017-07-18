@@ -1,0 +1,171 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=4)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 5
+
+##Problem 9
+We will now consider the Boston housing data set, from the MASS
+library.
+### a) 
+Based on this data set, provide an estimate for the population
+mean of medv. Call this estimate $\hat{\mu}$
+```{r}
+library(MASS)
+attach(Boston)
+mu_hat <- mean(Boston$medv)
+```
+$\hat{\mu}=$ ```r mu_hat```
+
+### b) 
+Provide an estimate of the standard error of $\hat{\mu}$. Interpret this
+result.
+
+Hint: We can compute the standard error of the sample mean by
+dividing the sample standard deviation by the square root of the
+number of observations.
+
+```{r}
+se_sm <- sd(Boston$medv)/nrow(Boston)
+```
+ Our estimate of the standard error of the sample mean based on the standard deviation
+ is ```r se_sm```
+
+### c)
+Now estimate the standard error of $\hat{\mu}$ using the bootstrap. How
+does this compare to your answer from (b)?
+```{r}
+library(boot)
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- mean(D$medv)
+  return(result)
+}
+
+se_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_bootstrap
+```
+
+### d) 
+Based on your bootstrap estimate from (c), provide a 95% confidence
+interval for the mean of medv. Compare it to the results
+obtained using t.test(Boston$medv).
+
+Hint: You can approximate a 95% confidence interval using the
+formula $[\hat{\mu} - 2SE(\hat{\mu}), \hat{\mu} + 2SE(\hat{\mu})]$.
+
+```{r}
+left_ci <-  mu_hat - 2 * sd(se_bootstrap$t)
+right_ci<- mu_hat + 2 * sd(se_bootstrap$t)
+```
+
+
+Our 95% CI as estimated from the boostrap calculation is
+[```r left_ci``` , ```r right_ci```] 
+
+The results of the t-test are comparable to the bootstrap estimate, but the one sample t-test provides a smaller estimate of the 95% CI.
+
+```{r}
+t.test(Boston$medv)
+```
+
+
+### e) 
+Based on this data set, provide an estimate, med, for the median
+value of medv in the population.
+
+We can use the sample median for an estimate of the population median which is :
+
+```{r}
+median(Boston$medv)
+```
+
+### f)
+We now would like to estimate the standard error of $\hat{\mu_med}$. Unfortunately,
+there is no simple formula for computing the standard
+error of the median. Instead, estimate the standard error of the
+median using the bootstrap. Comment on your findings.
+```{r}
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- median(D$medv)
+  return(result)
+}
+se_median_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_median_bootstrap
+```
+
+The estimate of standard error of the median as calculated by the bootstrap is 
+```{r}
+sd(se_median_bootstrap$t)
+```
+
+
+```{r}
+left_ci <-  mu_hat - 2 * sd(se_median_bootstrap$t)
+right_ci<- mu_hat + 2 * sd(se_median_bootstrap$t)
+```
+
+Our 95% CI as estimated from the boostrap calculation is
+[```r left_ci``` , ```r right_ci```] 
+
+We're not sure if this estimate is valid for the median so let's calculate the 5th and 95th quantile from the bootstrap sample
+
+```{r}
+left_ci <-  quantile(se_median_bootstrap$t,0.05)
+right_ci<-  quantile(se_median_bootstrap$t,0.95)
+```
+
+[```r left_ci``` , ```r right_ci```] 
+
+This is a much tighter CI, so we wonder if the estimate above applied to the median.
+
+### g) 
+Based on this data set, provide an estimate for the tenth percentile
+of medv in Boston suburbs. Call this quantity $\hat{\mu_0.1}$. (You
+can use the quantile() function.)
+
+The sample tenth percentile of medv is
+```{r}
+quantile(Boston$medv,.1)
+```
+
+###h) 
+Use the bootstrap to estimate the standard error of $\hat{\mu_0.1}$. Comment
+on your findings.
+
+```{r}
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- quantile(D$medv, 0.1)
+  return(result)
+}
+se_quantile_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_quantile_bootstrap
+```
+
+The estimate of standard error of the tenth percentile as calculated by the bootstrap is 
+```{r}
+sd(se_quantile_bootstrap$t)
+```

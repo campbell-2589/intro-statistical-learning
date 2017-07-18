@@ -1,0 +1,99 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 2
+
+##Problem 7
+```{r}
+library("knitr")
+library ("pander")
+X = matrix(data = 
+c(
+  0,2,0,0,-1,1,0,
+  3,0,1,1,0,1,0,
+  0,0,3,2,1,1,0
+)
+           ,nrow=7,ncol=3)
+
+pander(X)
+D <- as.matrix(dist(X, method = "euclidean", diag = FALSE, upper = FALSE, p = 2))
+
+#Adding class labels
+DF <- cbind(X, c("Red","Red","Red","Green","Green","Green","UNK"))
+
+```
+
+This is the distance matrix 
+
+```{r}
+pander(D)
+```
+
+And the distances from the test points to the training points is
+
+```{r} 
+testDist <- D[7,-7]
+pander(testDist)
+```
+
+
+When K=1 the distance to the nearest neighbor is `r min(D[7,-7])` - note we removed the test point.  
+
+
+```{r}
+index<- which.min(D[7,-7])
+classLabel <- (DF[index,4])
+```
+
+### a)
+The predicted label for K=1 is `r classLabel`
+
+The KNN classifier estimates the class conditional probability using K nearest neighbors as 
+$$P(Y=color | X=x_0) = \frac{1}{k} \sum_{N_k} I(y_i == color)$$
+
+for K=1 this reduces to setting the color to that of the nearest neighbor - which is green. 
+
+When K=3 we have 
+```{r}
+Z <-sort(testDist,index.return=TRUE)
+
+class1stNearest<- Z$ix[1]
+class2dnNearest<- Z$ix[2]
+class3rdNearest<- Z$ix[3]
+```
+
+### b)
+For K=3 the classes of the three nearest neighbors are 
+```{r}
+pander(c(DF[class3rdNearest,4], DF[class2dnNearest,4], DF[class3rdNearest,4]))
+```
+
+And 
+$$P(Y=red | X=(0,0,0)) = \frac{1}{3} 2) = \frac{2}{3}$$
+
+$$P(Y=green | X=(0,0,0)) = \frac{1}{3} 1) = \frac{1}{3}$$
+
+So KNN with K=3 classifies the test point as red.
+
+### c)
+
+If the optimal decision boundary is highly non-linear we would expect the best value of K to be a small number.  This is because local information is lost when including large number of points. When K gets very large we average over a large area and the optimal decision boundary is effectively smoothed out. When K is small we classify based on local information and we expect KNN to preform better for highly non linear boundaries. 
+
+
+

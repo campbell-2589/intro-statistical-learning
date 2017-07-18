@@ -1,0 +1,300 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 4
+
+##Problem 10
+
+This question should be answered using the Weekly data set, which
+is part of the ISLR package. This data is similar in nature to the
+Smarket data from this chapter's lab, except that it contains 1,089
+weekly returns for 21 years, from the beginning of 1990 to the end of
+2010.
+
+## a) Produce some numerical and graphical summaries of the Weekly data. Do there appear to be any patterns?
+
+ ```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=10, fig.width=10,dev="pdf"}
+library(ISLR)
+attach(Weekly)
+summary(Weekly)
+
+library(ggplot2)
+require(GGally)
+ggpairs(Weekly) + 
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())
+```
+
+From the above we note that
+
+* THere are more up than down weeks in the data set
+* Volume is increasing over time
+* Volume on up days has a longer tail that volumen on down days
+* returns may have skew
+
+ ```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=4, fig.width=4,dev="pdf"}
+hist(Weekly$Today,50) 
+
+library(moments)
+skewness(Weekly$Today)
+```
+
+
+## b) 
+Use the full data set to perform a logistic regression with Direction as the response and the five lag variables plus Volume as predictors. Use the summary function to print the results. Do any of the predictors appear to be statistically significant? If so,
+which ones?
+
+ ```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=4, fig.width=4,dev="pdf"}
+
+attach(Weekly)
+DFWeekly= Weekly
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Weekly,family=binomial)
+summary (glm.fit)
+
+```
+
+The lag2 variable is significant with a p-value of 0.0296
+
+##c) 
+Compute the confusion matrix and overall fraction of correct
+predictions. Explain what the confusion matrix is telling you
+about the types of mistakes made by logistic regression.
+
+```{r}
+glm.probs =predict (glm.fit ,type ="response")
+library(pander)
+contrasts (Direction )
+glm.pred=rep ("Down " ,nrow(Weekly))
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,Direction )
+
+pi_up=sum(Direction=="Up")
+pi_down=sum(Direction=="Down")
+
+```
+
+We see that the accuracy is (557 + 54) / 1089 which is 56% and that the classifier does poorly on the down class where the accuracy is
+```r 54 / pi_down```
+
+
+## d) 
+Now fit the logistic regression model using a training data period
+from 1990 to 2008, with Lag2 as the only predictor. Compute the
+confusion matrix and the overall fraction of correct predictions
+for the held out data (that is, the data from 2009 and 2010).
+
+```{r}
+
+attach(Weekly)
+DF<-Weekly
+DFTrain <-DF[DF$Year<=2008,]
+DFTest <-DF[DF$Year>2008,]
+glm.fit=glm(Direction~Lag2 ,data=DFTrain ,family =binomial )
+summary (glm.fit)
+glm.probs =predict (glm.fit ,DFTest,type ="response")
+library(pander)
+glm.pred=rep ("Down " ,nrow(DFTest))
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,DFTest$Direction )
+pi_up=sum(Direction=="Up")
+pi_down=sum(Direction=="Down")
+
+```
+
+The accuracy for logistic regerssion on the test set is (9+56)/104 - or 62%.  
+
+### e) Repeat (d) using LDA.
+```{r}
+attach(Weekly)
+library (MASS)
+lda.fit=lda(Direction~Lag2 ,data=DFTrain)
+lda.fit
+lda.pred=predict (lda.fit , DFTest)
+names(lda.pred)
+lda.class =lda.pred$class
+table(lda.class ,DFTest$Direction)
+```
+
+The accuracy for LDA classification on the test set is (9+56)/104 - or 62%. Note this is identical to the logistic regression
+
+### f) Repeat (d) using QDA.
+```{r}
+attach(Weekly)
+train =(Year<2009)
+Weekly.2009= Weekly[!train ,]
+Direction.2009= Weekly$Direction[!train]
+qda.fit=qda(Direction~Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+table(qda.class ,Direction.2009)
+```
+
+This classifier did not correctly classify any of the down test points. We diagnose the code a few ways below.  First by adding the Lag1
+variable and second by reproducing the results on the SMarket dataset. 
+
+```{r}
+qda.fit=qda(Direction~Lag1+Lag2 ,data=DFTrain)
+qda.fit
+qda.pred=predict (qda.fit , DFTest)
+names(qda.pred)
+
+qda.class =predict (qda.fit ,DFTest)$class
+
+qda.class =qda.pred$class
+table(qda.class ,DFTest$Direction)
+```
+
+The accuracy for this classifier is (7+51) / 104 - 56%
+
+
+### g) Repeat (d) using KNN with K = 1.
+```{r}
+library(class)
+attach(Weekly)
+train =(Year<2009)
+train.X=data.frame(cbind(Lag2)[train ,])
+test.X=data.frame(cbind (Lag2)[!train ,])
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn(train.X,test.X,train.Direction ,k=1)
+table(knn.pred ,Direction.2009)
+```
+
+The accuracy of KNN with k=1 is (32 + 18) / 104 - 48%.
+
+
+
+## h) 
+Which of these methods appears to provide the best results on
+this data?
+For this data set and model we see that the logistic regression and LDA are the top performers in terms of classification accuracy.
+
+
+## i) 
+Experiment with different combinations of predictors, including
+possible transformations and interactions, for each of the
+methods. Report the variables, method, and associated confusion
+matrix that appears to provide the best results on the held
+out data. Note that you should also experiment with values for
+K in the KNN classifier.
+
+
+```{r}
+library(class)
+attach(Weekly)
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+
+message("KNN")
+train.X=cbind(Lag1,Lag2)[train ,]
+test.X=cbind (Lag1,Lag2)[!train ,]
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn (train.X,test.X,train.Direction ,k=2)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF <-data.frame(model="KNN(Direction~Lag1,Lag2) k=2",Accuracy=ACC_KNN)
+
+
+train.X=cbind(Lag1,Lag2,Volume)[train ,]
+test.X=cbind (Lag1,Lag2,Volume)[!train ,]
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn (train.X,test.X,train.Direction ,k=1)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=1",Accuracy=ACC_KNN))
+
+
+knn.pred=knn (train.X,test.X,train.Direction ,k=2)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=2",Accuracy=ACC_KNN))
+
+
+knn.pred=knn (train.X,test.X,train.Direction ,k=4)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=4",Accuracy=ACC_KNN))
+
+message("QDA")
+
+attach(Weekly)
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+qda.fit=qda(Direction~Lag1+Lag2+Volume ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Volume)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2++Volume + Lag1*Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Volume+Direction + Lag1*Lag2)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2+Lag1 * Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Lag1 * Lag1)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2)",Accuracy=ACC_QDA))
+
+message("LDA")
+
+attach(Weekly)
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+lda.fit=lda(Direction~Lag1+Lag2+Volume ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Volume)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2++Volume + Lag1*Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Volume+Direction + Lag1*Lag2)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2+Lag1 * Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Lag1 * Lag1)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2)",Accuracy=ACC_LDA))
+
+pander(modelsDF)
+```
+
+We see the best prforming  models from this set are QDA(Direction~Lag1+Lag2) and LDA(Direction~Lag1+Lag2)

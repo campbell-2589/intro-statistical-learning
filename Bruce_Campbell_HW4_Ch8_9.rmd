@@ -1,0 +1,196 @@
+---
+title: "Bruce Campbell ST-617 Homework 4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+#Chapter 8
+
+##Problem 9
+This problem involves the OJ data set which is part of the ISLR
+package.
+
+### a)
+Create a training set containing a random sample of 800 observations,
+and a test set containing the remaining observations.
+```{r}
+library(ISLR)
+attach(OJ)
+train=sample(nrow(OJ),800)
+DF<-OJ
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+```
+
+### b) 
+```Fit a tree to the training data, with Purchase as the response
+and the other variables except for Buy as predictors. Use the
+summary() function to produce summary statistics about the
+tree, and describe the results obtained. What is the training
+error rate? How many terminal nodes does the tree have?```
+```{r}
+names(DFTrain)
+
+library(tree)
+
+control.settings <- tree.control(minsize = 30,nobs = nrow(DFTrain) )
+tree.oj=tree(Purchase~.,DFTrain, control = control.settings, split = "deviance")
+
+summary(tree.oj)
+
+##We notice that few of the variables are included in the tree despite changing the control settings.
+## We check with rpart to make sure this is the case.  rpart does respond to changes in the control setting.
+library(rpart)				  # Popular decision tree algorithm
+library(rattle)					# Fancy tree plot
+library(rpart.plot)			# Enhanced tree plots
+library(RColorBrewer)		# Color selection for fancy tree plot
+
+control.settings <-rpart.control(minsplit =100)
+tree.rpart<- rpart(Purchase~.,data=DFTrain,control = control.settings)
+
+fancyRpartPlot(tree.rpart)
+
+```
+### c) 
+```Type in the name of the tree object in order to get a detailed
+text output. Pick one of the terminal nodes, and interpret the
+information displayed.```
+
+```{r}
+tree.oj
+```
+
+LoyalCH > 0.482389 
+LoyalCH < 0.764572
+PriceDiff < 0.265
+PriceDiff > -0.165
+ 
+is an interesting node.  It tells us that there may be a price difference at which a loyal customer my switch brands. 
+
+### d)
+```Create a plot of the tree, and interpret the results.```
+
+```{r}
+plot(tree.oj,cex=0.35)
+
+text(tree.oj ,pretty =0,cex=0.6)
+```
+
+We see quite clearly that brand loyalty is the dominant variable in predicting which brand is purchased. 
+
+### e) 
+```Predict the response on the test data, and produce a confusion
+matrix comparing the test labels to the predicted test labels.
+What is the test error rate?```
+
+```{r}
+oj.probs=predict(tree.oj ,newdata =DFTest)
+#oj.probs is a matrix with names columns the first being probability of CH the second probability of  MM
+oj.pred=rep ("CH " ,nrow(DFTest))
+oj.pred[oj.probs[,1] >.5]=" CH"
+TB <- table(oj.pred ,DFTest$Purchase )
+library(pander)
+pander(TB)
+
+ACC_Tree = (TB[1]+TB[4])/ length(DFTest$Purchase)
+```
+
+The accuracy of the tree classifyer is ```r ACC_Tree```
+
+### f) 
+Apply the cv.tree() function to the training set in order to
+determine the optimal tree size.
+
+```{r}
+cv.tree <- cv.tree(tree.oj,FUN=prune.misclass)
+cv.tree
+```
+
+###g) 
+Produce a plot with tree size on the x-axis and cross-validated
+classification error rate on the y-axis.
+
+```{r}
+plot(cv.tree$size,cv.tree$dev)
+optimal_tree_size <- cv.tree$size[which.min(cv.tree$dev)]
+```
+
+##h) 
+Which tree size corresponds to the lowest cross-validated classification
+error rate?
+
+The optimal tree size based on the cross validation error rate is ```r optimal_tree_size```
+
+### i) 
+Produce a pruned tree corresponding to the optimal tree size
+obtained using cross-validation. If cross-validation does not lead
+to selection of a pruned tree, then create a pruned tree with five
+terminal nodes.
+
+```{r}
+prune.oj <- prune.misclass(tree.oj,best = optimal_tree_size)
+
+plot(prune.oj,cex=0.35)
+text(prune.oj ,pretty =0,cex=0.6)
+```
+
+### j) 
+Compare the training error rates between the pruned and unpruned
+trees. Which is higher?
+```{r}
+summ_tree.oj<-summary(tree.oj)
+train_err_tree.oj <- summ_tree.oj$misclass[1]/summ_tree.oj$misclass[2]
+
+summ_prune.oj<-summary(prune.oj)
+train_err_prune.oj <- summ_prune.oj$misclass[1]/summ_prune.oj$misclass[2]
+
+pander(data.frame(tree=c("tree.oj","prune.tree"),training_error=c(train_err_tree.oj, train_err_prune.oj)))
+```
+
+We have the same error.  
+
+### k) 
+```Compare the test error rates between the pruned and unpruned
+trees. Which is higher?```
+
+
+```{r}
+oj.probs=predict(prune.oj ,newdata =DFTest)
+#oj.probs is a matrix with names columns the first being probability of CH the second probability of  MM
+oj.pred=rep ("CH " ,nrow(DFTest))
+oj.pred[oj.probs[,1] >.5]=" CH"
+TB <- table(oj.pred ,DFTest$Purchase )
+library(pander)
+
+ACC_Prune = (TB[1]+TB[4])/ length(DFTest$Purchase)
+
+pander(data.frame(tree=c("tree.oj","prune.tree"),test_error=c(ACC_Tree, ACC_Prune)))
+
+```
+
+We have the same error.  
+
+
+This is suspicious. As noted above the tree call is returning the same tree regardless
+of the control setting. It is notable that this tree size is close to the same as that suggested by the cross validation
+routine. We'd like to debug and understand this further.
+

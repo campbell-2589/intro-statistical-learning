@@ -1,0 +1,448 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 2
+
+##Problem 7
+```{r}
+library("knitr")
+library ("pander")
+X = matrix(data = 
+c(
+  0,2,0,0,-1,1,0,
+  3,0,1,1,0,1,0,
+  0,0,3,2,1,1,0
+)
+           ,nrow=7,ncol=3)
+
+pander(X)
+D <- as.matrix(dist(X, method = "euclidean", diag = FALSE, upper = FALSE, p = 2))
+
+#Adding class labels
+DF <- cbind(X, c("Red","Red","Red","Green","Green","Green","UNK"))
+
+```
+
+This is the distance matrix 
+
+```{r}
+pander(D)
+```
+
+And the distances from the test points to the training points is
+
+```{r} 
+testDist <- D[7,-7]
+pander(testDist)
+```
+
+
+When K=1 the distance to the nearest neighbor is `r min(D[7,-7])` - note we removed the test point.  
+
+
+```{r}
+index<- which.min(D[7,-7])
+classLabel <- (DF[index,4])
+```
+
+### a)
+The predicted label for K=1 is `r classLabel`
+
+The KNN classifier estimates the class conditional probability using K nearest neighbors as 
+$$P(Y=color | X=x_0) = \frac{1}{k} \sum_{N_k} I(y_i == color)$$
+
+for K=1 this reduces to setting the color to that of the nearest neighbor - which is green. 
+
+When K=3 we have 
+```{r}
+Z <-sort(testDist,index.return=TRUE)
+
+class1stNearest<- Z$ix[1]
+class2dnNearest<- Z$ix[2]
+class3rdNearest<- Z$ix[3]
+```
+
+### b)
+For K=3 the classes of the three nearest neighbors are 
+```{r}
+pander(c(DF[class3rdNearest,4], DF[class2dnNearest,4], DF[class3rdNearest,4]))
+```
+
+And 
+$$P(Y=red | X=(0,0,0)) = \frac{1}{3} 2) = \frac{2}{3}$$
+
+$$P(Y=green | X=(0,0,0)) = \frac{1}{3} 1) = \frac{1}{3}$$
+
+So KNN with K=3 classifies the test point as red.
+
+### c)
+
+If the optimal decision boundary is highly non-linear we would expect the best value of K to be a small number.  This is because local information is lost when including large number of points. When K gets very large we average over a large area and the optimal decision boundary is effectively smoothed out. When K is small we classify based on local information and we expect KNN to preform better for highly non linear boundaries. 
+
+
+
+#Chapter 2
+
+##Problem 10
+
+### a)
+There are 506 observations in the Boston data set which contain a variety of variables purported to affect housing values in the suburbs of Boston. 
+
+This data frame contains the following columns:
+
+* crim : per capita crime rate by town.
+
+* zn :proportion of residential land zoned for lots over 25,000 sq.ft.
+
+* indus : proportion of non-retail business acres per town.
+
+* chas :Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+
+* nox :nitrogen oxides concentration (parts per 10 million).
+
+* rm :average number of rooms per dwelling.
+
+* age : proportion of owner-occupied units built prior to 1940.
+
+* dis : weighted mean of distances to five Boston employment centres.
+
+* rad : index of accessibility to radial highways.
+
+* tax : full-value property-tax rate per \$10,000.
+
+* ptratio : pupil-teacher ratio by town.
+
+* black : 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.
+
+* lstat : lower status of the population (percent).
+
+* medv : median value of owner-occupied homes in \$1000s
+
+### b) 
+```{r}
+library(MASS)
+#library(ggplot2)
+#require(GGally)
+library(pander)
+DF <-Boston
+```
+![Scatterplot](image.pdf)
+
+We note
+
+* several bimodal variables : indus,rad,tax
+* some linear relationships :  (dis,age) (rm,mdev)
+* a few mildly non linear relationships (nox,age) (nox,dis)
+
+### c) 
+chas has a higher crime rate at a value of 0
+
+`r plot(DF$chas,DF$crim)`
+
+certain values of nox (nox >.57 ) are associated with a higher crime rate 
+
+`r plot(DF$nox,DF$crim)`
+
+older towns have a higher crime rate
+
+`r plot(DF$age,DF$crim)`
+
+Additionally there is a spike in crime at a indus value of 19
+
+`r plot(DF$indus,DF$crim)`
+
+### d)
+The crime rate variable has a long tail. 
+
+`r hist(DF$crim,50)`
+
+There are 11 observations with a value higher than 25.
+
+`r p <- DF[DF$crim>25,]; `
+
+The tax rate appears bimodal with 137 towns having a rate above 650 and the rest below 450
+
+`r hist(DF$tax,50)`
+
+There are some towns with a low pupil teacher ratio. We note that the tax rate for these towns does not fall in the upper bracket. 
+
+We use the summary function to look at the ranges of the variables
+```{r}
+S<-summary(DF)
+pander(S)
+```
+### e) 
+
+```{r}
+countBoundingCharles <- nrow(DF[DF$chas==1,])
+```
+There are `r countBoundingCharles` towns identified as bordering the Charles.
+
+### f) 
+From the summary table above we see that the median pupil to teacher ration is 19.05.
+
+### g)
+```{r}
+lowMed <- DF[which.min(DF$medv), ]
+pander(lowMed)
+```
+The town with the lowest median value of owner occupied houses has a high crime rate as indicated by the box plot below.
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=4, fig.width=4,dev="pdf"}
+boxplot(DF$crim)
+points(lowMed$crim, col='red', pch='*',cex=3)
+title("Crime Rate with min(meddev) indicated in red")
+```
+
+Nox is elevated for this town
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=4, fig.width=4,dev="pdf"}
+boxplot(DF$nox)
+points(lowMed$nox, col='red', pch='*',cex=3)
+title("Nos with min(meddev) indicated in red")
+```
+
+Indus is elevated for this town
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=4, fig.width=4,dev="pdf"}
+boxplot(DF$indus)
+points(lowMed$indus, col='red', pch='*',cex=3)
+title("Indus with min(meddev) indicated in red")
+```
+
+Black is elevated for this town
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=4, fig.width=4,dev="pdf"}
+boxplot(DF$black)
+points(lowMed$black, col='red', pch='*',cex=3)
+title("Black with min(meddev) indicated in red")
+```
+
+
+### h) 
+
+```{r}
+sevenRooms<- DF[DF$rm>7,]
+
+eightRooms<- DF[DF$rm>8,]
+```
+
+There are `r nrow(sevenRooms)` dwellings with more than seven rooms, and there are `r nrow(eightRooms)` with more than eight rooms.  
+
+```{r}
+pander(eightRooms)
+
+```
+
+#Chapter 3
+
+##Problem 8
+
+### a ) 
+```{r}
+rm(list = ls())
+library(ISLR)
+library(pander)
+DF <-Auto
+pander(names(DF))
+lm.fit <- lm(mpg ~ horsepower , data=DF)
+summary(lm.fit)
+
+ Yhat <- function( beta0,beta1,predictor) 
+ {
+   result<- beta0+beta1*predictor
+   return(unname(result))
+ }
+ 
+ mpg_h98 <- Yhat(lm.fit$coefficients["(Intercept)"],lm.fit$coefficients["horsepower"],98)
+ 
+```
+
+
+We note that there is a negative relationship between horsepower and mpg. When horsepower goes up mpg goes down. We note that the coefficients $\beta_0$ and $\beta_1$ are large compared to their standard errors and that the p-value of the t-statistic is very small
+
+The confidence intervals for the regression coefficients are not too wide as seen below
+
+```{r}
+pander(confint(lm.fit))
+```
+
+The predicted value of mpg for a horsepower of 98 is `r mpg_h98` as calculated by our function above. Using the predict function we get the prediction intervals 
+```{r}
+predict(lm.fit,data.frame(horsepower=c(98)),interval = "prediction")
+```
+
+and confidence intervals for this point
+```{r}
+predict(lm.fit,data.frame(horsepower=c(98)),interval = "confidence")
+```
+
+
+### b)
+```{r dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+plot(DF$horsepower,DF$mpg)
+abline(lm.fit,col='red',lwd=4)
+```
+
+
+### c) Diagnostic plots
+
+```{r dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+par(mfrow=c(2,2))
+plot(lm.fit)
+```
+
+From the diagnostic plots we see that there are some high leverage points and that residuals are higher at the boundaries of the range of the predictor. We also note some divergence from normality for the standardized residuals. 
+
+#Chapter 3
+
+##Problem 13
+
+### a ) 
+```{r}
+rm(list = ls())
+
+X <- rnorm(100,0,1)
+
+epsilon <- rnorm(100,0,0.25)
+
+Y <- -1 + 0.5 * X + epsilon
+```
+
+### c)
+The length of y is 100, $\beta_0=  -1$ and $\beta_1 = 0.5$
+
+### d)
+
+`r plot(X,Y,pch='+',col='red')`
+We note that there is a positive linear relation between X and Y, that the midpoint of theh range of X is rougly 0 and the midpoint of the range of Y is rougly -1. We also note the dispersion of the data along the diagonal is about $\frac{1}{4}$
+
+### e) 
+
+```{r}
+DF <- data.frame( predictor = X, response = Y)
+lm.fit <- lm( response ~ predictor , data=DF)
+summary(lm.fit)
+```
+
+The estimated values of the regression coefficients are very close to the actual values of -1 and .5.
+
+### f) 
+```{r dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+plot(X,Y,pch='*')
+abline(lm.fit,col='red',lwd=3)
+abline(-1,.5,col='blue',lwd=2)
+legend("topleft", title.col = "black",
+  c("data","fit", "population" ),
+  text.col =c("black","red", "blue"),
+  text.font = 1, cex = 1)
+```
+
+
+### g) 
+```{r}
+lm_poly.fit <- lm( response ~ predictor + I(predictor^2) , data=DF)
+summary(lm_poly.fit)
+
+```
+
+There is very little evidence that adding a polynomial term to the regression has improves the fit. RSE and R squared were not markedly affected by the addition of the quadratic term.  We also note the p-value of the quadratic term is high and the coefficient is near 0, reflecting it's insignificance in the model. 
+
+### h) Reducing error
+
+```{r dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+Xr <- rnorm(100,0,1)
+epsilon <- rnorm(100,0,0.1)
+Yr <- -1 + 0.5 * Xr + epsilon
+DF <- data.frame( predictor = Xr, response = Yr)
+lm_r.fit <- lm( response ~ predictor , data=DF)
+summary(lm_r.fit)
+plot(Xr,Yr,pch='*')
+abline(lm_r.fit,col='red',lwd=3)
+abline(-1,.5,col='blue',lwd=2)
+legend("topleft", title.col = "black",
+  c("data","fit", "population" ),
+  text.col =c("black","red", "blue"),
+  text.font = 1, cex = 1)
+
+```
+
+When we reduce the error in the data the median residual and RES are decreased. Mutliple R square is increased.  All indicates of improved performance in the fit. 
+
+### i)
+
+Confidence interval for the first model
+```{r}
+confint(lm.fit)
+```
+
+Confidence interval for the second model
+```{r}
+confint(lm_r.fit)
+```
+As expected our confidence interval in the second model is smaller than the first.
+
+
+#Chapter 4
+
+##Problems 6 and 9
+
+###Problem 6
+For a logistic regression model we fit 
+$$p(X) = \frac{e^{\beta_0 + \beta_1 X_1 + \beta_2 X_2}}{1+e^{\beta_0 + \beta_1 X_1 + \beta_2 X_2}}$$
+
+```{r}
+
+beta_0=-6.0
+beta_1= 0.05
+beta_2=1.0
+
+x_1=40.0
+x_2=3.5
+
+P_x <- function( beta_0,beta_1,beta_2,x_1,x_2) 
+ {
+   e_x_dot_y<- exp(beta_0+beta_1*x_1+beta_2*x_2)
+   result = e_x_dot_y / (1 + e_x_dot_y)
+   return(unname(result))
+ }
+
+prob_A = P_x( beta_0,beta_1,beta_2,x_1,x_2) 
+```
+
+If a student studies 40 hours and has a GPA of 3.5 the estimated probability of getting an A is `r prob_A`
+
+### b) Calculate the number of hours of study needed to have a 50% chance of getting an A
+Let $\alpha = \beta_0+\beta_2 * x_2 = -2.5$ and treat $x_1$ as an unknown in the log-odds equation
+
+$$ log \left( \frac{P(X)}{1-P(X)} \right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 $$
+
+Which simplifies to $x_1 = \frac{2}{3} * \frac{1}{0.05} = 13.33$ when we put it 3.5 for $x_2$ and 0.5 for $P(X)$
+
+
+###Problem 9
+#### a)
+We use the definition of odds 
+
+$$ odds = \frac{P(X)}{1-P(X)}$$ 
+
+to calculate the probability.  If the odds are .37 then $P(X) = \frac{.37}{1.37} = .27$ So the fraction of people defaulting with an odds of .37 is .27
+
+#### b) 
+If someone has a 16% chance of default on a credit card payment then the associated odds is $\frac{.16}{(1- .16)} = .19$.
+ 

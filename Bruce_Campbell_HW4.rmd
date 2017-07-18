@@ -1,0 +1,433 @@
+---
+title: "Bruce Campbell ST-617 Homework 4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+#Chapter 8
+
+##Problem 4
+
+This question relates to the plots in Figure 8.12.
+### a)
+Sketch the tree corresponding to the partition of the predictor
+space illustrated in the left-hand panel of Figure 8.12. The numbers
+inside the boxes indicate the mean of Y within each region.
+
+![figure](Ch8_4_a.jpg)
+
+### b) 
+Create a diagram similar to the left-hand panel of Figure 8.12,
+using the tree illustrated in the right-hand panel of the same
+figure. You should divide up the predictor space into the correct
+regions, and indicate the mean for each region.
+
+![figure](Ch8_4_b.jpg)
+
+
+#Chapter 8
+
+##Problem 5
+Suppose we produce ten bootstrapped samples from a data set
+containing red and green classes. We then apply a classification tree
+to each bootstrapped sample and, for a specific value of X, produce
+10 estimates of $P(Class is Red|X)$
+
+```{r}
+data <- c(0.1, 0.15, 0.2, 0.2, 0.55, 0.6, 0.6, 0.65, 0.7, 0.75)
+library(pander)
+pander(data)
+```
+
+There are two common ways to combine these results together into a
+single class prediction. One is the majority vote approach discussed in
+this chapter. The second approach is to classify based on the average
+probability. In this example, what is the final classification under each
+of these two approaches?
+
+```{r}
+Red <- data>0.5
+
+sum_red <- sum(Red)
+
+is_red_by_vote <- sum_red >= 5
+
+mean_probability <- mean(data)
+
+is_red_by_mean <- mean_probability > 0.5 
+
+results <- data.frame(method = c("voting","mean"),is_red=c(is_red_by_vote,is_red_by_mean))
+
+pander(results)
+```
+
+
+
+#Chapter 8
+
+##Problem 8
+In the lab, a classification tree was applied to the Carseats data set after
+converting Sales into a qualitative response variable. Now we will
+seek to predict Sales using regression trees and related approaches,
+treating the response as a quantitative variable.
+
+### a) 
+Split the data set into a training set and a test set.
+```{r}
+library(ISLR)
+attach(Carseats)
+train=sample(nrow(Carseats), floor(nrow(Carseats)* 2/3))
+DF<-Carseats
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+```
+
+### b) 
+Fit a regression tree to the training set. Plot the tree, and interpret
+the results. What test error rate do you obtain?
+```{r}
+library(tree)
+tree.carseat=tree(Sales~.,DFTrain)
+
+#Here we can set the minimum number of elements at a node.
+control.settings <- tree.control(minsize = 30,nobs = nrow(DFTrain) )
+#tree.carseat=tree(Sales~.,DFTrain,control = control.settings)
+
+summary(tree.carseat)
+
+plot(tree.carseat,cex=0.35)
+
+text(tree.carseat ,pretty =0,cex=0.6)
+
+```
+
+We see that ShelveLoc, Price and Age are the three most important variables.  CompPrice is relevant for BadMedium shelf Loc.  This is interesting as we expect those willing to consider all locations are those that would be comparing the prices. 
+```{r}
+yhat=predict(tree.carseat ,newdata =DFTest)
+plot(yhat ,DFTest$Sales)
+abline (0,1)
+MSE <- mean((yhat -DFTest$Sales)^2)
+library(pander)
+
+RSS <- sum((yhat-DFTest$Sales)^2)
+TSS <- sum((DFTest$Sales - mean(DFTest$Sales))^2)
+RS2_Train <- 1- (RSS/TSS)
+```
+
+The MSE of the training set is ```r MSE``` and the $R^2$ of the training set is ```r RS2_Train```
+
+Here we take a quick look at the rpart package.  The implementor of the the tree package reccomends rpart over tree.
+
+https://stat.ethz.ch/pipermail/r-help/2005-May/070922.html
+
+```{r}
+library(rpart)				  # Popular decision tree algorithm
+library(rattle)					# Fancy tree plot
+library(rpart.plot)			# Enhanced tree plots
+library(RColorBrewer)		# Color selection for fancy tree plot
+
+control.settings <-rpart.control(minsplit = 30)
+tree.rpart<- rpart(Sales~.,data=DFTrain,control = control.settings)
+
+fancyRpartPlot(tree.rpart)
+```
+
+We see some differences but most of the same variables towards the top of the tree.  
+
+
+### c) 
+Use cross-validation in order to determine the optimal level of
+tree complexity. Does pruning the tree improve the test error
+rate?
+
+```{r}
+cv.carseat <-cv.tree(tree.carseat)
+plot(cv.carseat$size ,cv.carseat$dev)
+
+prune.carseat =prune.tree(tree.carseat ,best =10)
+plot(prune.carseat )
+text(prune.carseat ,pretty =0)
+
+yhat=predict(prune.carseat ,newdata =DFTest)
+MSE_pruned_10 <- mean((yhat -DFTest$Sales)^2)
+library(pander)
+
+RSS <- sum((yhat-DFTest$Sales)^2)
+TSS <- sum((DFTrain$Sales - mean(DFTest$Sales))^2)
+RS2_Train_pruned_10 <- 1- (RSS/TSS)
+
+prune.carseat =prune.tree(tree.carseat ,best =5)
+plot(prune.carseat )
+text(prune.carseat ,pretty =0)
+
+yhat=predict(prune.carseat ,newdata =DFTest)
+
+MSE_pruned_5 <- mean((yhat -DFTest$Sales)^2)
+library(pander)
+
+RSS <- sum((yhat-DFTest$Sales)^2)
+TSS <- sum((DFTrain$Sales - mean(DFTest$Sales))^2)
+RS2_Train_pruned_5 <- 1- (RSS/TSS)
+```
+
+The cross validation results suggest that we try pruning at 5 and 10 terminal nodes.
+
+```{r}
+MSE_DF <-data.frame(model=c("MSE Full","MSE Prune 5","MSE Prune 10"), c(MSE,MSE_pruned_5,MSE_pruned_10))
+pander(MSE_DF)
+
+RSQ_DF <-data.frame(model=c("RSQ Full","RSQ Prune 5","RSQ Prune 10"), c(RS2_Train,RS2_Train_pruned_5,RS2_Train_pruned_10))
+pander(RSQ_DF)
+```
+
+### d) 
+Use the bagging approach in order to analyze this data. What
+test error rate do you obtain? Use the importance() function to
+determine which variables are most important
+
+```{r}
+library(randomForest)
+bag.carseat =randomForest(Sales~.,data=DFTrain ,mtry=11, importance =TRUE)
+bag.carseat
+
+yhat.bag = predict (bag.carseat ,newdata =DFTest)
+plot(yhat.bag , DFTest$Sales)
+abline (0,1)
+MSE_Bagging <- mean(( yhat.bag -DFTest$Sales)^2)
+
+
+varImpPlot(bag.carseat)
+```
+
+The MSE for bagged model is ```r MSE_Bagging``` and is greatly reduced from that of the single regression tree MSE of ```r MSE```.
+We also note that the most important variables are ShelveLoc, Price, Age, CompPrice, and Advertising
+
+### e) 
+Use random forests to analyze this data. What test error rate do
+you obtain? Use the ```importance()``` function to determine which
+variables are most important. Describe the effect of m, the number
+of variables considered at each split, on the error rate
+obtained.
+
+```{r}
+randomforest.carseat =randomForest(Sales~.,data=DFTrain ,mtry=7, importance =TRUE)
+randomforest.carseat
+
+yhat.randomforest = predict (randomforest.carseat ,newdata =DFTest)
+plot(yhat.randomforest , DFTest$Sales)
+abline (0,1)
+MSE_RandomForest <- mean(( yhat.randomforest -DFTest$Sales)^2)
+
+varImpPlot(randomforest.carseat)
+```
+
+As expected the random forest MSE (```r MSE_RandomForest```) is lower than the bagging MSE (```r MSE_Bagging```)  
+
+
+```{r}
+mse_vev <- matrix(data = NA,nrow = 11,ncol = 1)
+for(i in 1:11)
+{
+  randomforest.carseat =randomForest(Sales~.,data=DFTrain ,mtry=i, importance =TRUE)
+  yhat.randomforest = predict (randomforest.carseat ,newdata =DFTest)
+  mse_vev[i] <- mean(( yhat.randomforest -DFTest$Sales)^2)
+}
+plot(1:11,mse_vev,xlab = "Number of Vars considered in split",ylab = "MSE of Random Forset")
+
+which.min(mse_vev)
+```
+
+The bagging importance plot has served us well.  We chose an m of 7 based on that plot, and the plot above of 
+the MSE by m confirms that 7 was the best choice.  As expected we see the MSE goes down rapidly as we add variables, and 
+then levels off. 
+
+#Chapter 8
+
+##Problem 9
+This problem involves the OJ data set which is part of the ISLR
+package.
+
+### a)
+Create a training set containing a random sample of 800 observations,
+and a test set containing the remaining observations.
+```{r}
+library(ISLR)
+attach(OJ)
+train=sample(nrow(OJ),800)
+DF<-OJ
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+```
+
+### b) 
+```Fit a tree to the training data, with Purchase as the response
+and the other variables except for Buy as predictors. Use the
+summary() function to produce summary statistics about the
+tree, and describe the results obtained. What is the training
+error rate? How many terminal nodes does the tree have?```
+```{r}
+names(DFTrain)
+
+library(tree)
+
+control.settings <- tree.control(minsize = 30,nobs = nrow(DFTrain) )
+tree.oj=tree(Purchase~.,DFTrain, control = control.settings, split = "deviance")
+
+summary(tree.oj)
+
+##We notice that few of the variables are included in the tree despite changing the control settings.
+## We check with rpart to make sure this is the case.  rpart does respond to changes in the control setting.
+library(rpart)				  # Popular decision tree algorithm
+library(rattle)					# Fancy tree plot
+library(rpart.plot)			# Enhanced tree plots
+library(RColorBrewer)		# Color selection for fancy tree plot
+
+control.settings <-rpart.control(minsplit =100)
+tree.rpart<- rpart(Purchase~.,data=DFTrain,control = control.settings)
+
+fancyRpartPlot(tree.rpart)
+
+```
+### c) 
+```Type in the name of the tree object in order to get a detailed
+text output. Pick one of the terminal nodes, and interpret the
+information displayed.```
+
+```{r}
+tree.oj
+```
+
+LoyalCH > 0.482389 
+LoyalCH < 0.764572
+PriceDiff < 0.265
+PriceDiff > -0.165
+ 
+is an interesting node.  It tells us that there may be a price difference at which a loyal customer my switch brands. 
+
+### d)
+```Create a plot of the tree, and interpret the results.```
+
+```{r}
+plot(tree.oj,cex=0.35)
+
+text(tree.oj ,pretty =0,cex=0.6)
+```
+
+We see quite clearly that brand loyalty is the dominant variable in predicting which brand is purchased. 
+
+### e) 
+```Predict the response on the test data, and produce a confusion
+matrix comparing the test labels to the predicted test labels.
+What is the test error rate?```
+
+```{r}
+oj.probs=predict(tree.oj ,newdata =DFTest)
+#oj.probs is a matrix with names columns the first being probability of CH the second probability of  MM
+oj.pred=rep ("CH " ,nrow(DFTest))
+oj.pred[oj.probs[,1] >.5]=" CH"
+TB <- table(oj.pred ,DFTest$Purchase )
+library(pander)
+pander(TB)
+
+ACC_Tree = (TB[1]+TB[4])/ length(DFTest$Purchase)
+```
+
+The accuracy of the tree classifier is ```r ACC_Tree```
+
+### f) 
+Apply the cv.tree() function to the training set in order to
+determine the optimal tree size.
+
+```{r}
+cv.tree <- cv.tree(tree.oj,FUN=prune.misclass)
+cv.tree
+```
+
+###g) 
+Produce a plot with tree size on the x-axis and cross-validated
+classification error rate on the y-axis.
+
+```{r}
+plot(cv.tree$size,cv.tree$dev)
+optimal_tree_size <- cv.tree$size[which.min(cv.tree$dev)]
+```
+
+##h) 
+Which tree size corresponds to the lowest cross-validated classification
+error rate?
+
+The optimal tree size based on the cross validation error rate is ```r optimal_tree_size```
+
+### i) 
+Produce a pruned tree corresponding to the optimal tree size
+obtained using cross-validation. If cross-validation does not lead
+to selection of a pruned tree, then create a pruned tree with five
+terminal nodes.
+
+```{r}
+prune.oj <- prune.misclass(tree.oj,best = optimal_tree_size)
+
+plot(prune.oj,cex=0.35)
+text(prune.oj ,pretty =0,cex=0.6)
+```
+
+### j) 
+Compare the training error rates between the pruned and un-pruned
+trees. Which is higher?
+```{r}
+summ_tree.oj<-summary(tree.oj)
+train_err_tree.oj <- summ_tree.oj$misclass[1]/summ_tree.oj$misclass[2]
+
+summ_prune.oj<-summary(prune.oj)
+train_err_prune.oj <- summ_prune.oj$misclass[1]/summ_prune.oj$misclass[2]
+
+pander(data.frame(tree=c("tree.oj","prune.tree"),training_error=c(train_err_tree.oj, train_err_prune.oj)))
+```
+
+We have the same error.  
+
+### k) 
+```Compare the test error rates between the pruned and un-pruned
+trees. Which is higher?```
+
+
+```{r}
+oj.probs=predict(prune.oj ,newdata =DFTest)
+#oj.probs is a matrix with names columns the first being probability of CH the second probability of  MM
+oj.pred=rep ("CH " ,nrow(DFTest))
+oj.pred[oj.probs[,1] >.5]=" CH"
+TB <- table(oj.pred ,DFTest$Purchase )
+library(pander)
+
+ACC_Prune = (TB[1]+TB[4])/ length(DFTest$Purchase)
+
+pander(data.frame(tree=c("tree.oj","prune.tree"),test_error=c(ACC_Tree, ACC_Prune)))
+
+```
+
+We have the same error.  
+
+
+This is suspicious. As noted above the tree call is returning the same tree regardless
+of the control setting. It is notable that this tree size is close to the same as that suggested by the cross validation
+routine. We'd like to debug and understand this further.
+

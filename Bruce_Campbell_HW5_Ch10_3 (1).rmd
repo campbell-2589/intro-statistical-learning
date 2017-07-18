@@ -1,0 +1,169 @@
+---
+title: "Bruce Campbell ST-617 Homework 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+#Chapter 10
+
+##Problem 3
+```
+In this problem, you will perform K-means clustering manually, with
+K = 2, on a small example with n = 6 observations and p = 2
+features.
+
+```
+
+### a) 
+```Plot the observations.```
+```{r}
+X1 <- c(1, 1,0,5,6,4)
+X2 <- c(4, 3, 4, 1, 2, 0)
+plot(X1,X2)
+```
+
+### b) 
+```Randomly assign a cluster label to each observation. You can
+use the sample() command in R to do this. Report the cluster
+labels for each observation.```
+
+```{r}
+DF <- data.frame(X1=X1,X2=X2)
+class1 <- sample(nrow(DF),floor(nrow(DF)/2))
+
+class <- matrix(0,nrow = nrow(DF),ncol = 1)
+class[class1] <- 1
+DF$class <- class
+library(pander)
+pander(DF)
+```
+### c)
+```Compute the centroid for each cluster.```
+
+```{r}
+
+DFClass1 <-DF[DF$class==1,]
+DFClass1$class<-NULL
+centroid1 <- colMeans(as.matrix(DFClass1))
+
+
+DFClass0 <-DF[DF$class==0,]
+DFClass0$class<-NULL
+centroid0 <- colMeans(as.matrix(DFClass0))
+
+```
+
+### d) 
+```Assign each observation to the centroid to which it is closest, in
+terms of Euclidean distance. Report the cluster labels for each
+observation.```
+
+```{r}
+DFDist <- rbind(DFClass0,DFClass1,centroid0,centroid1)
+
+#Boo Duplicate Row names not allowed. Oh well we understand why
+index <- ( c(rep("class 0",nrow(DFClass0)),c(rep("class 1",nrow(DFClass1)), "Centroid0","Centroid1")))
+#row.names(DFDist)<-index
+
+row.names(DFDist) <- c("C01","C02","C03","C11","C12","C13","Centroid0","Centroid1")
+
+dmat <-as.matrix(dist(DFDist))
+
+centroid0Index <- which(index=="Centroid0")
+
+centroid1Index <- which(index=="Centroid1")
+
+indicatorCentroid1_isCloser <- dmat[centroid1Index,]<dmat[centroid0Index,]
+indicatorCentroid1_isCloser
+
+cluster1 <- which(indicatorCentroid1_isCloser[c(-7,-8)])
+cluster0 <- which(indicatorCentroid1_isCloser[c(-7,-8)]==FALSE)
+
+pander(cluster0,caption="Cluster 0")
+
+pander(cluster1,caption="Cluster 1")
+
+
+plot(DFClass0$X1,DFClass0$X2,col='red',xlim=c(0, 8),ylim=c(0, 8))
+points(DFClass1$X1,DFClass1$X2,col='blue')
+points(centroid0[1],centroid0[2],pch="*",col="green")
+points(centroid1[1],centroid1[2],pch="*",col="black")
+  
+```
+
+### e) 
+```Repeat (c) and (d) until the answers obtained stop changing.```
+
+```{r}
+oldCluster0 <-cluster0
+oldCluster1 <-cluster1
+numIter = 10
+for(i in 1:numIter)
+{
+  DFClass1 <-DF[cluster1,]
+  centroid1 <- colMeans(as.matrix(DFClass1))
+  
+  DFClass0 <-DF[cluster0,]
+  centroid0 <- colMeans(as.matrix(DFClass0))
+  DFDist <- rbind(DFClass0,DFClass1,centroid0,centroid1)
+  
+  index <- ( c(rep("class 0",nrow(DFClass0)),c(rep("class 1",nrow(DFClass1)), "Centroid0","Centroid1")))
+  
+  row.names(DFDist) <- c("C01","C02","C03","C11","C12","C13","Centroid0","Centroid1")
+  
+  dmat <-as.matrix(dist(DFDist))
+  
+  centroid0Index <- which(index=="Centroid0")
+  
+  centroid1Index <- which(index=="Centroid1")
+  
+  indicatorCentroid1_isCloser <- dmat[centroid1Index,]<dmat[centroid0Index,]
+  
+  cluster1 <- which(indicatorCentroid1_isCloser[c(-7,-8)])
+  cluster0 <- which(indicatorCentroid1_isCloser[c(-7,-8)]==FALSE)
+  
+  pander(cluster0,caption="Cluster 0")
+  
+  pander(cluster1,caption="Cluster 1")
+  
+  numIter <- numIter-1
+  plot(DFClass0$X1,DFClass0$X2,col='red',xlim=c(0, 8),ylim=c(0, 8))
+  points(DFClass1$X1,DFClass1$X2,col='blue')
+  points(centroid0[1],centroid0[2],pch="*",col="green")
+  points(centroid1[1],centroid1[2],pch="*",col="black")
+
+  numIter
+}
+
+#We don't have to put the code above in a loop out of luck.  We'd like to revisit this and put the code in a loop. 
+```
+
+### f) 
+```In your plot from (a), color the observations according to the
+cluster labels obtained.```
+
+```{r}
+
+plot(DFClass0$X1,DFClass0$X2,col='red',xlim=c(0, 8),ylim=c(0, 8))
+points(DFClass1$X1,DFClass1$X2,col='blue')
+```
+
+We MUST have a bug in our code.  Sadly, we're out of time.

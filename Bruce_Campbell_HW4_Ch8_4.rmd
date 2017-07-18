@@ -1,0 +1,44 @@
+---
+title: "Bruce Campbell ST-617 Homework 4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+
+#Chapter 8
+
+##Problem 4
+
+This question relates to the plots in Figure 8.12.
+### a)
+Sketch the tree corresponding to the partition of the predictor
+space illustrated in the left-hand panel of Figure 8.12. The numbers
+inside the boxes indicate the mean of Y within each region.
+
+![figure](Ch8_4_a.jpg)
+
+### b) 
+Create a diagram similar to the left-hand panel of Figure 8.12,
+using the tree illustrated in the right-hand panel of the same
+figure. You should divide up the predictor space into the correct
+regions, and indicate the mean for each region.
+
+![figure](Ch8_4_b.jpg)

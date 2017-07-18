@@ -1,0 +1,944 @@
+---
+title: "Bruce Campbell ST-617 Homework 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 4
+
+##Problem 7
+Suppose that we wish to predict whether a given stock will issue a
+dividend this year ("Yes" or "No") based on X, last year's percent
+profit.We examine a large number of companies and discover that the
+mean value of X for companies that issued a dividend was $\overline{X} = 10$,
+while the mean for those that didn't was $\overline{x} = 0$. In addition, the
+variance of X for these two sets of companies was $\hat{\sigma^2} = 36$. Finally,
+80% of companies issued dividends. Assuming that X follows a normal
+distribution, predict the probability that a company will issue
+a dividend this year given that its percentage profit was X = 4 last
+year.
+
+
+Let's denote our 2 classes 0,1 where 0 indicates no dividend and 1 indicates a dividend. Then 
+we will need to calculate the posterior probability $P(Y=1 | X=4)$.  We are given all of the information we need to 
+do this.  The prior probabilities are $\pi_1=0.8$ and $\pi_0=0.2$ and the likelihood of each class is given 
+by $N(\mu_1,\hat{\sigma})(x)$ where $\mu_1=10$ and $N(\mu_0,\hat{\sigma})$ where $\mu_0=0$ and $\hat{\sigma} = 36$ in both cases.
+$N(\mu,\sigma)(x)= \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (x-\mu)^2}$ is the normal distribution with mean $\mu$ and 
+variance $\hat{\sigma^2}$.
+
+Putting this all together into Bayes theorem
+
+$$P(Y=1 | X=4) = \frac {N(\mu_1,\hat{\sigma})(4) \pi_1}{N(\mu_1,\hat{\sigma})(4) \pi_1 + N(\mu_0,\hat{\sigma})(4) \pi_0 }$$
+
+```{r}
+
+mu_1=.1
+mu_0=0
+
+pi_1=.8
+pi_0=.2
+
+sigma_sq=36
+stdev_est=6
+
+x=4
+
+posterior_probability_of_dividend_given_x <- function(x,mu_1,mu_0,stdev_est, pi_1,pi_0)
+{
+  probability = ( dnorm(x, mean = mu_1, sd = stdev_est) * pi_1 ) /(  dnorm(x, mean = mu_1, sd = stdev_est) * pi_1  + dnorm(x, mean = mu_0, sd = stdev_est) * pi_0 )
+  return(probability)
+}
+  
+posterior_probability_of_dividend <- posterior_probability_of_dividend_given_x(x,mu_1,mu_0,stdev_est, pi_1,pi_0)
+
+```
+
+We have that the probability of a dividend in the event the $X=$ is ```r posterior_probability_of_dividend```.
+
+
+#Chapter 4
+
+##Problem 10
+
+This question should be answered using the Weekly data set, which
+is part of the ISLR package. This data is similar in nature to the
+Smarket data from this chapter's lab, except that it contains 1,089
+weekly returns for 21 years, from the beginning of 1990 to the end of
+2010.
+
+## a) Produce some numerical and graphical summaries of the Weekly data. Do there appear to be any patterns?
+
+
+```{r,warning=FALSE}
+options(warn=-1)
+library(ISLR)
+attach(Weekly)
+summary(Weekly)
+
+library(ggplot2)
+require(GGally)
+ggpairs(Weekly) + 
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())
+```
+
+From the above we note that
+
+* THere are more up than down weeks in the data set
+* Volume is increasing over time
+* Volume on up days has a longer tail that volumen on down days
+* returns may have skew
+
+```{r,fig.height=4, fig.width=4,dev="pdf"}
+hist(Weekly$Today,50) 
+library(moments)
+skewness(Weekly$Today)
+```
+
+
+## b) 
+Use the full data set to perform a logistic regression with Direction as the response and the five lag variables plus Volume as predictors. Use the summary function to print the results. Do any of the predictors appear to be statistically significant? If so,
+which ones?
+
+```{r}
+DFWeekly= Weekly
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Weekly,family=binomial)
+summary (glm.fit)
+```
+
+The lag2 variable is significant with a p-value of 0.0296
+
+##c) 
+Compute the confusion matrix and overall fraction of correct
+predictions. Explain what the confusion matrix is telling you
+about the types of mistakes made by logistic regression.
+
+```{r}
+glm.probs =predict (glm.fit ,type ="response")
+library(pander)
+contrasts (Direction )
+glm.pred=rep ("Down " ,nrow(Weekly))
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,Direction )
+
+pi_up=sum(Direction=="Up")
+pi_down=sum(Direction=="Down")
+
+```
+
+We see that the accuracy is (557 + 54) / 1089 which is 56% and that the classifier does poorly on the down class where the accuracy is
+```r 54 / pi_down```
+
+
+## d) 
+Now fit the logistic regression model using a training data period
+from 1990 to 2008, with Lag2 as the only predictor. Compute the
+confusion matrix and the overall fraction of correct predictions
+for the held out data (that is, the data from 2009 and 2010).
+
+```{r,warning=FALSE}
+invisible(attach(Weekly))
+DF<-Weekly
+DFTrain <-DF[DF$Year<=2008,]
+DFTest <-DF[DF$Year>2008,]
+glm.fit=glm(Direction~Lag2 ,data=DFTrain ,family =binomial )
+summary (glm.fit)
+glm.probs =predict (glm.fit ,DFTest,type ="response")
+library(pander)
+glm.pred=rep ("Down " ,nrow(DFTest))
+glm.pred[glm.probs >.5]=" Up"
+table(glm.pred ,DFTest$Direction )
+pi_up=sum(Direction=="Up")
+pi_down=sum(Direction=="Down")
+
+```
+
+The accuracy for logistic regerssion on the test set is (9+56)/104 - or 62%.  
+
+### e) Repeat (d) using LDA.
+```{r}
+library (MASS)
+lda.fit=lda(Direction~Lag2 ,data=DFTrain)
+lda.fit
+lda.pred=predict (lda.fit , DFTest)
+names(lda.pred)
+lda.class =lda.pred$class
+table(lda.class ,DFTest$Direction)
+```
+
+The accuracy for LDA classification on the test set is (9+56)/104 - or 62%. Note this is identical to the logistic regression
+
+### f) Repeat (d) using QDA.
+```{r,warning=FALSE}
+invisible(attach(Weekly))
+train =(Year<2009)
+Weekly.2009= Weekly[!train ,]
+Direction.2009= Weekly$Direction[!train]
+qda.fit=qda(Direction~Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+table(qda.class ,Direction.2009)
+```
+
+This classifier did not correctly classify any of the down test points. We diagnose the code a few ways below.  First by adding the Lag1
+variable and second by reproducing the results on the SMarket dataset. 
+
+```{r}
+qda.fit=qda(Direction~Lag1+Lag2 ,data=DFTrain)
+qda.fit
+qda.pred=predict (qda.fit , DFTest)
+names(qda.pred)
+
+qda.class =predict (qda.fit ,DFTest)$class
+
+qda.class =qda.pred$class
+table(qda.class ,DFTest$Direction)
+```
+
+The accuracy for this classifier is (7+51) / 104 - 56%
+
+
+### g) Repeat (d) using KNN with K = 1.
+```{r, warning=FALSE}
+attach(Weekly)
+library(class)
+train =(Year<2009)
+train.X=data.frame(cbind(Lag2)[train ,])
+test.X=data.frame(cbind (Lag2)[!train ,])
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn(train.X,test.X,train.Direction ,k=1)
+table(knn.pred ,Direction.2009)
+```
+
+The accuracy of KNN with k=1 is (32 + 18) / 104 - 48%.
+
+
+
+## h) 
+Which of these methods appears to provide the best results on
+this data?
+For this data set and model we see that the logistic regression and LDA are the top performers in terms of classification accuracy.
+
+
+## i) 
+Experiment with different combinations of predictors, including
+possible transformations and interactions, for each of the
+methods. Report the variables, method, and associated confusion
+matrix that appears to provide the best results on the held
+out data. Note that you should also experiment with values for
+K in the KNN classifier.
+
+
+```{r}
+library(class)
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+
+message("KNN")
+train.X=cbind(Lag1,Lag2)[train ,]
+test.X=cbind (Lag1,Lag2)[!train ,]
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn (train.X,test.X,train.Direction ,k=2)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF <-data.frame(model="KNN(Direction~Lag1,Lag2) k=2",Accuracy=ACC_KNN)
+
+
+train.X=cbind(Lag1,Lag2,Volume)[train ,]
+test.X=cbind (Lag1,Lag2,Volume)[!train ,]
+train.Direction =Direction[train]
+set.seed (1)
+knn.pred=knn (train.X,test.X,train.Direction ,k=1)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=1",Accuracy=ACC_KNN))
+
+
+knn.pred=knn (train.X,test.X,train.Direction ,k=2)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=2",Accuracy=ACC_KNN))
+
+
+knn.pred=knn (train.X,test.X,train.Direction ,k=4)
+TB <-table(knn.pred ,Direction.2009)
+ACC_KNN = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="KNN(Direction~Lag1+Lag2+Volume) k=4",Accuracy=ACC_KNN))
+
+message("QDA")
+
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+qda.fit=qda(Direction~Lag1+Lag2+Volume ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Volume)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2++Volume + Lag1*Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Volume+Direction + Lag1*Lag2)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2+Lag1 * Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2+Lag1 * Lag1)",Accuracy=ACC_QDA))
+
+qda.fit=qda(Direction~Lag1+Lag2 ,data=Weekly ,subset =train)
+qda.class =predict (qda.fit ,Weekly.2009)$class
+TB <-table(qda.class ,Direction.2009)
+ACC_QDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="QDA(Direction~Lag1+Lag2)",Accuracy=ACC_QDA))
+
+message("LDA")
+
+train =(Year<2009)
+Weekly.2009= Weekly [! train ,]
+Direction.2009= Direction [! train]
+lda.fit=lda(Direction~Lag1+Lag2+Volume ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Volume)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2++Volume + Lag1*Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Volume+Direction + Lag1*Lag2)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2+Lag1 * Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2+Lag1 * Lag1)",Accuracy=ACC_LDA))
+
+lda.fit=lda(Direction~Lag1+Lag2 ,data=Weekly ,subset =train)
+lda.class =predict (lda.fit ,Weekly.2009)$class
+TB <-table(lda.class ,Direction.2009)
+ACC_LDA = (TB[1]+TB[4])/ length(Direction.2009)
+modelsDF<- rbind(modelsDF, data.frame(model="LDA(Direction~Lag1+Lag2)",Accuracy=ACC_LDA))
+
+pander(modelsDF)
+```
+
+We see the best prforming  models from this set are QDA(Direction~Lag1+Lag2) and LDA(Direction~Lag1+Lag2)
+#Chapter 5
+
+##Problem 5
+In Chapter 4, we used logistic regression to predict the probability of
+default using income and balance on the Default data set. We will
+now estimate the test error of this logistic regression model using the
+validation set approach. Do not forget to set a random seed before
+beginning your analysis.
+
+## a) 
+Fit a logistic regression model that uses income and balance to
+predict default.
+
+```{r }
+rm(list = ls())
+library(ISLR)
+attach(Default)
+glm.fit = glm(default~income+balance,data=Default, family =binomial)
+summary(glm.fit)
+```
+
+### b) 
+Using the validation set appbroach, estimate the test error of this
+model. In order to do this, you must perform the following steps:
+i. Split the sample set into a training set and a validation set.
+ii. Fit a multiple logistic regression model using only the training
+observations.
+iii. Obtain a prediction of default status for each individual in
+the validation set by computing the posterior probability of
+default for that individual, and classifying the individual to
+the default category if the posterior probability is greater
+than 0.5.
+iv. Compute the validation set error, which is the fraction of
+the observations in the validation set that are misclassified.
+
+```{r}
+set.seed(7)
+train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+DF<-Default
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+glm.fit = glm(default~income+balance,data=DFTrain, family =binomial)
+summary(glm.fit)
+
+glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+contrasts(DFTest$default)
+glm.pred=rep ("No " ,nrow(DFTest))
+glm.pred[glm.probs >.5]=" Yes"
+TB<-table(glm.pred ,DFTest$default )
+ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+
+modelsDF <-data.frame(iteration=1,Accuracy=1-ACC_Validation)
+
+```
+
+### c)
+Repeat the process in (b) three times, using three different splits
+of the observations into a training set and a validation set. Comment
+on the results obtained.
+```{r}
+modelsDF <- data.frame(iteration=numeric(), Accuracy=numeric())
+
+for(i in 1: 3)
+{
+  train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+  DF<-Default
+  DFTrain <-DF[train,]
+  DFTest <-DF[-train,]
+  
+  glm.fit = glm(default~income+balance,data=DFTrain, family =binomial)
+  summary(glm.fit)
+  
+  glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+  glm.pred=rep ("No " ,nrow(DFTest))
+  glm.pred[glm.probs >.5]=" Yes"
+  TB<-table(glm.pred ,DFTest$default )
+  ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+  modelsDF <-rbind(modelsDF,data.frame(iteration=i,Accuracy=1-ACC_Validation))
+}
+library(pander)
+pander(modelsDF)
+```
+
+The validation test set error rates are all very similar.  This indicated the model is stable with respect to the random split into test and training
+sets and that the validation approach may be vaible in this instance althugh we'd probably want to do more iterations to confirm this.
+
+### d) 
+Now consider a logistic regression model that predicts the probability
+of default using income, balance, and a dummy variable
+for student. Estimate the test error for this model using the validation
+set approach. Comment on whether or not including a
+dummy variable for student leads to a reduction in the test error
+rate.
+```{r}
+modelsDFAug <- data.frame(iteration=numeric(), Accuracy=numeric())
+
+for(i in 1: 3)
+{
+  train=sample(nrow(Default), floor(nrow(Default)* 2/3))
+  DF<-Default
+  DFTrain <-DF[train,]
+  DFTest <-DF[-train,]
+  
+  glm.fit = glm(default~income+balance+student,data=DFTrain, family =binomial)
+  summary(glm.fit)
+  
+  glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+  glm.pred=rep ("No " ,nrow(DFTest))
+  glm.pred[glm.probs >.5]=" Yes"
+  TB<-table(glm.pred ,DFTest$default )
+  ACC_Validation = (TB[2]+TB[3])/ length(DFTest$default)
+  modelsDFAug <-rbind(modelsDFAug,data.frame(iteration=i,Accuracy=1-ACC_Validation))
+}
+library(pander)
+pander(modelsDFAug)
+```
+
+Including the student status as a predictor did not appear to change the validation set error rates - the change is the number of errors for each of the three runs is : 
+```{r}
+diff<- (modelsDFAug$Accuracy - modelsDF$Accuracy)*nrow(DFTest)
+pander(diff)
+```
+
+To make a more precise statement we'd run more iterations and compare the errors using a statistical test such as a t-test. 
+
+#Chapter 5
+
+##Problem 8
+We will now perform cross-validation on a simulated data set.
+### a) 
+Generate a simulated data set as follows:
+```{r}
+set.seed (1)
+# y=rnorm (100)  #<------------- Not sure why this is necessary
+x=rnorm (100)
+y=x-2* x^2+  rnorm (100)
+```
+In this data set, what is n and what is p? 
+
+$n=100$ and $p=2$
+
+Write out the model used to generate the data in equation form.
+
+$$Y=\beta_1 X + \beta_2 X^2 + \epsilon$$
+
+Where $\beta_1=1$ , $\beta_2=-2$, and $\epsilon=N(0,1)$
+
+### b) 
+Create a scatterplot of X against Y . Comment on what you find.
+
+```{r}
+plot(x,y)
+```
+
+We see the quadratic realtionship described in the model corrupted by the noise. 
+
+
+### c) 
+Set a random seed, and then compute the LOOCV errors that
+result from fitting the following four models using least squares:
+
+i. $$Y = \beta_0 + \beta_1 X + \epsilon$$
+ii. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \epsilon$$
+iii. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \epsilon$$
+iv. $$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \beta_4 X^4 + \epsilon$$
+
+```{r}
+set.seed(17)
+library(boot)
+
+loocv_rates <- data.frame(model=character(),LOOCV_ERROR_delta1=numeric(),LOOCV_ERROR_delta2=numeric())
+DF<- data.frame(X=x,Y=y)
+
+glm.fit_1 <- glm(Y~X,data = DF) 
+coef(glm.fit_1)
+cv.err_1<- cv.glm(DF,glm.fit_1)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X",LOOCV_ERROR_delta1=cv.err_1$delta[1], LOOCV_ERROR_delta2=cv.err_1$delta[2]))
+
+glm.fit_2 <- glm(Y~X+I(X^2),data = DF) 
+coef(glm.fit_2)
+cv.err_2<- cv.glm(DF,glm.fit_2)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2",LOOCV_ERROR_delta1=cv.err_2$delta[1], LOOCV_ERROR_delta2=cv.err_2$delta[2]))
+
+
+glm.fit_3 = glm(Y~X+I(X^2)+I(X^3),data = DF) 
+cv.err_3=cv.glm(DF,glm.fit_3)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3",LOOCV_ERROR_delta1=cv.err_3$delta[1], LOOCV_ERROR_delta2=cv.err_3$delta[2]))
+
+
+glm.fit_4 = glm(Y~X+I(X^2)+I(X^3)+I(X^4),data = DF) 
+cv.err_4=cv.glm(DF,glm.fit_4)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3+X^4",LOOCV_ERROR_delta1=cv.err_4$delta[1], LOOCV_ERROR_delta2=cv.err_4$delta[2]))
+
+library(pander)
+pander(loocv_rates)
+```
+
+### d) 
+Repeat (c) using another random seed, and report your results.
+Are your results the same as what you got in (c)? Why?
+
+```{r}
+set.seed(173)
+library(boot)
+
+loocv_rates <- data.frame(model=character(),LOOCV_ERROR_delta1=numeric(),LOOCV_ERROR_delta2=numeric())
+DF<- data.frame(X=x,Y=y)
+
+glm.fit_1 <- glm(Y~X,data = DF) 
+coef(glm.fit_1)
+cv.err_1<- cv.glm(DF,glm.fit_1)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X",LOOCV_ERROR_delta1=cv.err_1$delta[1], LOOCV_ERROR_delta2=cv.err_1$delta[2]))
+
+glm.fit_2 <- glm(Y~X+I(X^2),data = DF) 
+coef(glm.fit_2)
+cv.err_2<- cv.glm(DF,glm.fit_2)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2",LOOCV_ERROR_delta1=cv.err_2$delta[1], LOOCV_ERROR_delta2=cv.err_2$delta[2]))
+
+
+glm.fit_3 = glm(Y~X+I(X^2)+I(X^3),data = DF) 
+cv.err_3=cv.glm(DF,glm.fit_3)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3",LOOCV_ERROR_delta1=cv.err_3$delta[1], LOOCV_ERROR_delta2=cv.err_3$delta[2]))
+
+
+glm.fit_4 = glm(Y~X+I(X^2)+I(X^3)+I(X^4),data = DF) 
+cv.err_4=cv.glm(DF,glm.fit_4)
+summary(glm.fit_4)
+loocv_rates <- rbind(loocv_rates,data.frame(model="Y~X+X^2+X^3+X^4",LOOCV_ERROR_delta1=cv.err_4$delta[1], LOOCV_ERROR_delta2=cv.err_4$delta[2]))
+
+library(pander)
+pander(loocv_rates)
+```
+
+These are the same results.  The reason for this is that the LOOCV algorithm is deterministic.  It trains n models with n-1 training points reserving the nth point as a test point.  There is no random splitting of the training and test data.  
+
+### e) 
+Which of the models in (c) had the smallest LOOCV error? Is
+this what you expected? Explain your answer.
+
+The model with the lowest LOOCV error rate is the quadratic model.  This is as expected since the data was generated via a quadratic relationship.
+
+
+### f) 
+Comment on the statistical significance of the coefficient estimates
+that results from fitting each of the models in (c) using
+least squares. Do these results agree with the conclusions drawn based on the cross-validation results?
+
+The p-values for the third and fourth coefficient are not significant.  This is consistent with the cross validation results where the quadratic model 
+had the lowest error.
+
+#Chapter 5
+
+##Problem 9
+We will now consider the Boston housing data set, from the MASS
+library.
+### a) 
+Based on this data set, provide an estimate for the population
+mean of medv. Call this estimate $\hat{\mu}$
+```{r}
+library(MASS)
+attach(Boston)
+mu_hat <- mean(Boston$medv)
+```
+$\hat{\mu}=$ ```r mu_hat```
+
+### b) 
+Provide an estimate of the standard error of $\hat{\mu}$. Interpret this
+result.
+
+Hint: We can compute the standard error of the sample mean by
+dividing the sample standard deviation by the square root of the
+number of observations.
+
+```{r}
+se_sm <- sd(Boston$medv)/nrow(Boston)
+```
+ Our estimate of the standard error of the sample mean based on the standard deviation
+ is ```r se_sm```
+
+### c)
+Now estimate the standard error of $\hat{\mu}$ using the bootstrap. How
+does this compare to your answer from (b)?
+```{r}
+library(boot)
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- mean(D$medv)
+  return(result)
+}
+
+se_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_bootstrap
+```
+
+### d) 
+Based on your bootstrap estimate from (c), provide a 95% confidence
+interval for the mean of medv. Compare it to the results
+obtained using t.test(Boston$medv).
+
+Hint: You can approximate a 95% confidence interval using the
+formula $[\hat{\mu} - 2SE(\hat{\mu}), \hat{\mu} + 2SE(\hat{\mu})]$.
+
+```{r}
+left_ci <-  mu_hat - 2 * sd(se_bootstrap$t)
+right_ci<- mu_hat + 2 * sd(se_bootstrap$t)
+```
+
+
+Our 95% CI as estimated from the boostrap calculation is
+[```r left_ci``` , ```r right_ci```] 
+
+The results of the t-test are comparable to the bootstrap estimate, but the one sample t-test provides a smaller estimate of the 95% CI.
+
+```{r}
+t.test(Boston$medv)
+```
+
+
+### e) 
+Based on this data set, provide an estimate, med, for the median
+value of medv in the population.
+
+We can use the sample median for an estimate of the population median which is :
+
+```{r}
+median(Boston$medv)
+```
+
+### f)
+We now would like to estimate the standard error of $\hat{\mu_med}$. Unfortunately,
+there is no simple formula for computing the standard
+error of the median. Instead, estimate the standard error of the
+median using the bootstrap. Comment on your findings.
+```{r}
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- median(D$medv)
+  return(result)
+}
+se_median_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_median_bootstrap
+```
+
+The estimate of standard error of the median as calculated by the bootstrap is 
+```{r}
+sd(se_median_bootstrap$t)
+```
+
+
+```{r}
+left_ci <-  mu_hat - 2 * sd(se_median_bootstrap$t)
+right_ci<- mu_hat + 2 * sd(se_median_bootstrap$t)
+```
+
+Our 95% CI as estimated from the boostrap calculation is
+[```r left_ci``` , ```r right_ci```] 
+
+We're not sure if this estimate is valid for the median so let's calculate the 5th and 95th quantile from the bootstrap sample
+
+```{r}
+left_ci <-  quantile(se_median_bootstrap$t,0.05)
+right_ci<-  quantile(se_median_bootstrap$t,0.95)
+```
+
+[```r left_ci``` , ```r right_ci```] 
+
+This is a much tighter CI, so we wonder if the estimate above applied to the median.
+
+### g) 
+Based on this data set, provide an estimate for the tenth percentile
+of medv in Boston suburbs. Call this quantity $\hat{\mu_0.1}$. (You
+can use the quantile() function.)
+
+The sample tenth percentile of medv is
+```{r}
+quantile(Boston$medv,.1)
+```
+
+###h) 
+Use the bootstrap to estimate the standard error of $\hat{\mu_0.1}$. Comment
+on your findings.
+
+```{r}
+alpha.fn <-function(data,index)
+{
+  D=data[index,]
+  result <- quantile(D$medv, 0.1)
+  return(result)
+}
+se_quantile_bootstrap <-boot(Boston,alpha.fn,100)
+
+se_quantile_bootstrap
+```
+
+The estimate of standard error of the tenth percentile as calculated by the bootstrap is 
+```{r}
+sd(se_quantile_bootstrap$t)
+```
+#Chapter 6
+
+##Problem 10
+We have seen that as the number of features used in a model increases,
+the training error will necessarily decrease, but the test error may not.
+We will now explore this in a simulated data set.
+### a) 
+Generate a data set with p = 20 features, n = 1,000 observations,
+and an associated quantitative response vector generated
+according to the model
+$Y = X \beta + \epsilon$,
+where $\beta$ has some elements that are exactly equal to zero.
+```{r}
+rm(list = ls())
+set.seed(7)
+beta_v <- rnorm(20, 0,1)
+clamped_coeff=(beta_v<.5 & beta_v > -.5)
+beta_v[clamped_coeff] <-0
+
+X <-matrix(NA,nrow=1000,ncol=20)
+Y <-matrix(NA,nrow=1000,ncol=1)
+for (i in 1:1000)
+{
+  x_i=rnorm(20,0,1)
+  err=.1 * rnorm(1,0,1)
+  Y_i = beta_v %*% x_i + err
+  
+  X[i,] <-x_i
+  
+  Y[i] <- Y_i
+  
+}
+
+DF <- as.data.frame(X)
+DF <- cbind(DF,Y)
+names(DF) = c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11","X12","X13","X14","X15","X16","X17","X18","X19","X20","Y")
+```
+
+
+### b)
+Split your data set into a training set containing 100 observations
+and a test set containing 900 observations.
+```{r}
+  train=sample(nrow(DF), 900)
+  DFTrain <-DF[train,]
+  DFTest <-DF[-train,]
+```  
+
+### c) 
+Perform best subset selection on the training set, and plot the
+training set MSE associated with the best model of each size.
+```{r, dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=5, fig.width=7,dev="pdf"}
+library(leaps)
+attach(DFTrain)
+regfit.full<-regsubsets(Y~.,data = DFTrain,nvmax = 20)
+reg.summary <-summary(regfit.full)
+
+mse_v <- reg.summary$rss / nrow(DFTrain)
+
+plot(mse_v) 
+title("MSE versus model size for best subset selection algorithm on training set.")
+```
+
+### d) 
+Plot the test set MSE associated with the best model of each
+size.
+```{r, dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=5, fig.width=7,dev="pdf"}
+test_set_size <-100
+mse_v = matrix(NA,1,20)
+for(i in 1:20)
+{
+  beta_subset<- data.frame(coef(regfit.full,i))
+  
+  mse_subset <-0
+  for(j in 1:test_set_size)
+  {
+    X_j = DFTest[, !(colnames(DFTest) %in% c("Y"))]
+    
+    X_j = X_j[j,]
+    
+    Y_j = DFTest$Y[j]
+    
+    intercept = beta_subset["(Intercept)",]
+    
+    coeff_names <- rownames(beta_subset)
+    
+    coeff_names <- coeff_names[-1]
+    
+    coeff_x <- as.matrix(beta_subset[-1,])
+    mse_v
+    X_red <- X_j[, colnames(X_j) %in% coeff_names ]
+    
+    X_red <- as.matrix(X_red)
+    
+    V1 = matrix(NA,1,length(coeff_names))
+    V2 = matrix(NA,length(coeff_names),1)
+    V1=coeff_x
+    V2=X_red
+    
+    Yhat_j = intercept + V2 %*% V1
+    
+    mse_subset <- mse_subset + ( Yhat_j - Y_j)^2
+  }
+  mse_subset <- mse_subset / test_set_size
+  mse_v[i] = mse_subset
+}
+plot(1:20,mse_v)
+title("MSE versus model size for best subset selection algorithm on test set.")
+```
+
+
+### e) 
+For which model size does the test set MSE take on its minimum
+value? Comment on your results. If it takes on its minimum value
+for a model containing only an intercept or a model containing
+all of the features, then play around with the way that you are
+generating the data in (a) until you come up with a scenario in
+which the test set MSE is minimized for an intermediate model
+size.
+```{r}
+min_mse_model_index <- which.min(mse_v)
+library(pander)
+coeff_min <- coef(regfit.full,min_mse_model_index)
+pander(coeff_min)
+
+```
+
+
+The 12th subset is the one with the minimum MSE.  
+
+
+### f) 
+How does the model at which the test set MSE is minimized
+compare to the true model used to generate the data? Comment
+on the coefficient values.
+
+```{r}
+V <-beta_v
+V <-as.data.frame(V)
+rownames(V) = c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11","X12","X13","X14","X15","X16","X17","X18","X19","X20")
+pander(t(V))
+```
+
+Interestingly, we see that the best subset with minimum MSE has exactly the same non-zero features we used to generate the data.
+
+
+### g) 
+Create a plot displaying
+$\sqrt{\sum (\beta_j - \hat{\beta_j^r})^2}$ for a range of values
+of r, where $\hat{\beta_j^r}$ is the jth coefficient estimate for the best model
+containing r coefficients. Comment on what you observe. How
+does this compare to the test MSE plot from (d)?
+```{r, dpi=1200,tidy=TRUE,prompt=FALSE,echo=TRUE,fig.height=5, fig.width=7,dev="pdf"}
+err_beta_v = matrix(NA,1,20)
+betaDF <-as.data.frame(V)
+rownames(betaDF) = c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11","X12","X13","X14","X15","X16","X17","X18","X19","X20")
+betaDF <- t(betaDF)
+
+for(i in 1:20)
+{
+  beta_subset<- data.frame(coef(regfit.full,i))
+  
+  err_beta_subset <-0
+  
+  intercept = beta_subset["(Intercept)",]
+    
+  coeff_names <- rownames(beta_subset)
+    
+  coeff_names <- coeff_names[-1]
+    
+  coeff_x <- as.matrix(beta_subset[-1,])
+  
+  beta_red <- betaDF[, colnames(betaDF) %in% coeff_names ]
+  
+  for(j in 1:length(coeff_names))
+  {
+    Beta_j = betaDF[,coeff_names[j]]
+    
+    BetaHat_j = beta_subset[coeff_names[j],]
+    err_beta_subset <- err_beta_subset + ( Beta_j - BetaHat_j)^2
+  }
+  err_beta_subset <- err_beta_subset / length(coeff_names)
+  err_beta_v[i] = err_beta_subset
+}
+plot(1:20,err_beta_v)
+
+```
+
+The error in the coefficients decreases as model size increases, but we see that it is not a monotonic decrease. 
+```{r}
+which.min(err_beta_v)
+```
+The plots look similar.  The minimum coefficient error is achieved on the full model.

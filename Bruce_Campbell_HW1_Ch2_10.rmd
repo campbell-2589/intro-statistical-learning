@@ -1,0 +1,175 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 2
+
+##Problem 10
+
+### a)
+There are 506 observations in the Boston data set which contain a variety of variables porported to affect housing values in the suburbs of Boston. 
+
+This data frame contains the following columns:
+
+* crim : per capita crime rate by town.
+
+* zn :proportion of residential land zoned for lots over 25,000 sq.ft.
+
+* indus : proportion of non-retail business acres per town.
+
+* chas :Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+
+* nox :nitrogen oxides concentration (parts per 10 million).
+
+* rm :average number of rooms per dwelling.
+
+* age : proportion of owner-occupied units built prior to 1940.
+
+* dis : weighted mean of distances to five Boston employment centres.
+
+* rad : index of accessibility to radial highways.
+
+* tax : full-value property-tax rate per \$10,000.
+
+* ptratio : pupil-teacher ratio by town.
+
+* black : 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.
+
+* lstat : lower status of the population (percent).
+
+* medv : median value of owner-occupied homes in \$1000s
+
+### b) 
+```{r}
+library(MASS)
+#library(ggplot2)
+#require(GGally)
+library(pander)
+DF <-Boston
+```
+![Scatterplot](image.pdf)
+
+We note 
+* several bimodal variables : indus,rad,tax
+* some linear relationships :  (dis,age) (rm,mdev)
+* a few mildly non linear relationships (nox,age) (nox,dis)
+
+### c) 
+chas has a higher crime rate at a value of 0
+
+`r plot(DF$chas,DF$crim)`
+
+certain values of nox (nox >.57 ) are associated with a higher crime rate 
+
+`r plot(DF$nox,DF$crim)`
+
+older towns have a higher crime rate
+
+`r plot(DF$age,DF$crim)`
+
+Additionally there is a spike in crime at a indus value of 19
+
+`r plot(DF$indus,DF$crim)`
+
+### d)
+The crime rate variable has a long tail. 
+
+`r hist(DF$crim,50)`
+
+There are 11 obersevations with a value higher than 25.
+
+`r p <- DF[DF$crim>25,]; `
+
+The tax rate appears bimodal with 137 towns having a rate above 650 and the rest below 450
+
+`r hist(DF$tax,50)`
+
+There are some towns with a low putpil teacher ratio. We note that the tax rate for these towns does not fall in the upper bracket. 
+
+We use the summary function to look at the ranges of the variables
+```{r}
+S<-summary(DF)
+pander(S)
+```
+### e) 
+
+```{r}
+countBoundingCharles <- nrow(DF[DF$chas==1,])
+```
+There are `r countBoundingCharles` towns identified as bordering the Charles.
+
+### f) 
+From the summary table above we see that the median pupil to teacher ration is 19.05.
+
+### g)
+```{r}
+lowMed <- DF[which.min(DF$medv), ]
+pander(lowMed)
+```
+The town with the lowest median value of owner occupied houses has a high crime rate as indicated by the box plot below.
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+boxplot(DF$crim)
+points(lowMed$crim, col='red', pch='*',cex=3)
+title("Crime Rate with min(meddev) indicated in red")
+```
+
+Nox is elevated for this town
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+boxplot(DF$nox)
+points(lowMed$nox, col='red', pch='*',cex=3)
+title("Nos with min(meddev) indicated in red")
+```
+
+Indus is elevated for this town
+
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+boxplot(DF$indus)
+points(lowMed$indus, col='red', pch='*',cex=3)
+title("Indus with min(meddev) indicated in red")
+```
+
+Black is elevated for this town
+```{r,dpi=1200,tidy=TRUE,prompt=FALSE,echo=FALSE,fig.height=5, fig.width=5,dev="pdf"}
+boxplot(DF$black)
+points(lowMed$black, col='red', pch='*',cex=3)
+title("Black with min(meddev) indicated in red")
+```
+
+
+### h) 
+
+```{r}
+sevenRooms<- DF[DF$rm>7,]
+
+eightRooms<- DF[DF$rm>8,]
+```
+
+There are `r nrow(sevenRooms)` dwellings with more than seven rooms, and there are `r nrow(eightRooms)` with more than eight rooms.  
+
+```{r}
+pander(eightRooms)
+
+```
+
+
+
+
+
+

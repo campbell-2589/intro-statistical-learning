@@ -1,0 +1,148 @@
+---
+title: "Bruce Campbell ST-617 Homework 4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+#Chapter 8
+
+##Problem 11
+```This question uses the Caravan data set.```
+
+### a) 
+```Create a training set consisting of the first 1,000 observations,
+and a test set consisting of the remaining observations.```
+
+```{r}
+library(ISLR)
+train=sample(nrow(Caravan),1000)
+
+DF<-Caravan
+DF$PZEILPL <- NULL
+DF$AZEILPL <- NULL
+#-----------We remove two variables causing the warning seen below
+#Warning messages:
+#1: In gbm.fit(x, y, offset = offset, distribution = distribution, w = w,  :
+#  variable 60: PZEILPL has no variation.
+#2: In gbm.fit(x, y, offset = offset, distribution = distribution, w = w,  :
+#  variable 81: AZEILPL has no variation.
+
+
+#gbm requires the classification response to be in {0,1} so we have to convert the factor {"No","Yes"} to {0,1}
+
+#We were careful to ensure that the "No" level was mapped to 0. 
+f <- DF$Purchase
+levels(f) <- c("0","1")
+g <-as.numeric(levels(f)[f])
+DF$Purchase <- g
+
+#----------This is NOT the reccomended way to convert a factor!    
+#DF$Purchase <-as.numeric(DF$Purchase)-1
+
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+```
+
+### b) 
+```Fit a boosting model to the training set with Purchase as the
+response and the other variables as predictors. Use 1,000 trees,
+and a shrinkage value of 0.01. Which predictors appear to be
+the most important?```
+
+```{r}
+library (gbm)
+
+boost.Caravan =gbm(Purchase~.,data=DFTrain, distribution="bernoulli",n.trees =1000, interaction.depth =4,shrinkage=0.01)
+
+summary(boost.Caravan)
+
+summ_gbm <- summary(boost.Caravan)
+
+library(pander)
+pander(summ_gbm[1:10,] , caption = "Top 10 Features")
+```
+
+
+###c) 
+Use the boosting model to predict the response on the test data.
+Predict that a person will make a purchase if the estimated probability
+of purchase is greater than 20 %. Form a confusion matrix.
+What fraction of the people predicted to make a purchase
+do in fact make one? How does this compare with the results
+obtained from applying KNN or logistic regression to this data
+set?
+
+```{r}
+#predictions are on the scale of f(x). For example, for the Bernoulli loss the returned value is on the log odds scale
+#If type="response" then gbm converts back to the same scale as the outcome
+caravan.probs=predict(boost.Caravan ,newdata =DFTrain,n.trees = 1000,type="response")
+
+caravan.pred=rep (0,nrow(DFTest))
+caravan.pred[caravan.probs >.2]=1
+TB <- table(caravan.pred ,DFTest$Purchase )
+library(pander)
+pander(TB)
+
+ACC_Tree = (TB[1]+TB[4])/ length(DFTest$Purchase)
+
+Specificity = TB[1]/sum(DFTest$Purchase ==0)
+Sensitivity = TB[4]/sum(DFTest$Purchase ==1)
+```
+
+The specificity is quite good at ```r Specificity``` while the sensitivity is quite low at ```r Sensitivity```.  If we were looking to predict who _would_ purchase a Caravan we need to revisit the data set or try other methods. 
+
+Below we try a logistic regression and LDA on the top  predictors
+
+```{r}
+
+glm.fit=glm(Purchase~PPERSAUT+PBRAND+MOSTYPE+APERSAUT+MBERMIDD+PWAPART+MSKC,data=DFTrain ,family =binomial )
+summary (glm.fit)
+glm.probs =predict (glm.fit ,DFTest,type ="response")
+
+glm.pred=rep (0 ,nrow(DFTest))
+glm.pred[glm.probs >.5]=1
+TB <- table(glm.pred ,DFTest$Purchase)
+pander(TB,caption="Logistic Regression")
+ACC_Tree = (TB[1]+TB[4])/ length(DFTest$Purchase)
+
+Specificity = TB[1]/sum(DFTest$Purchase ==0)
+Sensitivity = TB[4]/sum(DFTest$Purchase ==1)
+```
+
+The sensitivity using logistic with the regression is 0.  
+
+### e) Repeat (d) using LDA.
+```{r}
+library (MASS)
+lda.fit=lda(Purchase~PPERSAUT+PBRAND+MOSTYPE+APERSAUT+MBERMIDD+PWAPART+MSKC ,data=DFTrain)
+lda.fit
+lda.pred=predict (lda.fit , DFTest)
+names(lda.pred)
+lda.class =lda.pred$class
+TB <- table(lda.class ,DFTest$Purchase)
+pander(TB, caption="LDA")
+ACC_Tree = (TB[1]+TB[4])/ length(DFTest$Purchase)
+
+Specificity = TB[1]/sum(DFTest$Purchase ==0)
+Sensitivity = TB[4]/sum(DFTest$Purchase ==1)
+```
+LDA does a little better than Logistic regression, but we see the boosted tree classifier performs the best of the models we've considered.
+
+

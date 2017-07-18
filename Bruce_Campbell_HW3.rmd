@@ -1,0 +1,973 @@
+---
+title: "Bruce Campbell ST-617 Homework 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+#Chapter 6
+
+##Problem 8
+In this exercise, we will generate simulated data, and will then use
+this data to perform best subset selection. 
+
+###a) 
+Use the rnorm() function to generate a predictor X of length
+n = 100, as well as a noise vector $\epsilon$ of length n = 100.
+
+```{r}
+rm(list = ls())
+set.seed(123)
+X <-rnorm(100,mean = 0,sd=1)
+
+epsilon <- rnorm(100, mean = 0, sd=1)
+```
+
+### b) 
+Generate a response vector Y of length n = 100 according to
+the model
+$$Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \epsilon$$,
+where $\beta_0, \beta_1, \beta_2,\beta_3$ are constants of your choice.
+
+```{r}
+beta= rnorm(4,mean = 0,sd = 1)
+Y <-matrix(NA,nrow=100,ncol=1)
+Yhat <-matrix(NA,nrow = 100,ncol = 1)
+
+for (i in 1 : 100)
+{
+  Y[i]=beta[1] +beta[2]* X[i] +beta[3]* X[i]^2+ beta[4]* X[i]^3
+  
+  Yhat[i]=beta[1] +beta[2]* X[i] +beta[3]* X[i]^2+ beta[4]* X[i]^3 + epsilon[i]
+}
+
+plot(X,Yhat,col='red')
+points(X,Y,pch='*',col='blue')
+title(main=sprintf( "Y = %f + %f X +  %f X^2+ %f X^3",beta[1] ,beta[2], +beta[3], beta[4] ),cex=4.6)
+```
+
+### c)
+Use the regsubsets() function to perform best subset selection
+in order to choose the best model containing the predictors
+$X,X^2, . . .,X^10$. What is the best model obtained according to
+Cp, BIC, and adjusted R2? Show some plots to provide evidence
+for your answer, and report the coefficients of the best model obtained.
+Note you will need to use the data.frame() function to
+create a single data set containing both X and Y .
+
+```{r}
+DF <- as.data.frame(X)
+DF <- cbind(DF,Yhat)
+names(DF) = c("X","Y")
+library(leaps)
+
+regfit.full<-regsubsets(Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),data = DF,nvmax = 10)
+
+reg.summary <-summary(regfit.full)
+
+mse_v <- reg.summary$rss / nrow(DF)
+
+plot(mse_v) 
+title("MSE versus model size for best subset selection algorithm on training set.")
+
+```
+
+We see that there is a sharp drop in the training set $MSE$ until 3 or 4 predictors are included and that there is a steady decrease as additional polynomial terms are included.  This is attributed to over fitting to the training data. 
+
+```{r}
+summary(regfit.full)
+```
+
+We notice the best subset algorithm has correctly included the proper terms in the third sets of predictors.  
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="adjr2")
+title("Adjuster $R^2$ statistic")
+```
+
+We need to remember that with $R^2$ statistic the values closer to 1 are a better fit.  Among those with a value of 0.86 we see that the model with $Intercept,X,X^2,X^3$ is selected. 
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="Cp")
+title("Mallow $C_p$")
+```
+
+The $C_p$ statistic indicates that the best model contains $Intercept,X,X^2,X^3$
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="bic")
+title("BIC")
+```
+
+The $BIC$ statistic indicates that the best model contains $Intercept,X,X^2,X^3$ 
+
+There was a problem with knitr where the cache was corrupted and the plots from old models were included.  The section below is retained for that purpose.  
+
+```{r}
+beta_test <-matrix(NA,nrow=4,ncol=1)
+beta_test[1]=1.0
+beta_test[2]=6.0
+beta_test[3]=.6
+beta_test[4]=.6
+
+Y_test <-matrix(NA,nrow=100,ncol=1)
+Yhat_test <-matrix(NA,nrow = 100,ncol = 1)
+
+for (i in 1 : 100)
+{
+  Y_test[i]=beta_test[1] +beta_test[2]* X[i] +beta_test[3]* X[i]^2+ beta_test[4]* X[i]^3
+  
+  Yhat_test[i]=beta_test[1] +beta_test[2]* X[i] +beta_test[3]* X[i]^2+ beta_test[4]* X[i]^3 + epsilon[i]
+}
+DF_test <- as.data.frame(X)
+DF_test <- cbind(DF,Yhat_test)
+names(DF) = c("X","Y")
+
+plot(X,Yhat_test,col='red')
+points(X,Y_test,pch='*',col='blue')
+title(main=sprintf( "Y = %f + %f X +  %f X^2+ %f X^3",beta_test[1] ,beta_test[2], +beta_test[3], beta_test[4] ),cex=4.6)
+regfit.full<-regsubsets(Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),data = DF_test,nvmax = 10)
+plot(regfit.full ,scale ="bic")
+title("BIC - for model with strong linear component ")
+
+```
+###d)
+Repeat (c), using forward stepwise selection and also using backwards
+stepwise selection. How does your answer compare to the
+results in (c)?
+
+#### FORWARD SSS
+```{r}
+regfit.full<-regsubsets(Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),data = DF,nvmax = 10,method = "forward")
+
+reg.summary <-summary(regfit.full)
+
+mse_v <- reg.summary$rss / nrow(DF)
+
+plot(mse_v) 
+title(c("MSE versus model size for forward subset selection algorithm on training set.","Forward SSS"))
+
+```
+
+We see that there is a sharp drop in the training set $MSE$ until 3 or 4 predictors are included and there is a steady decrease as additional polynomial terms are included.  This is attributed to over fitting to the training data. 
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="adjr2")
+title("Adjuster $R^2$ statistic Forward SSS")
+```
+
+Among those with a value of 0.86 we see that the model with $Intercept,X,X^2,X^3$ is selected. 
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="Cp")
+title("Mallow $C_p$ Forward SSS")
+```
+
+The $C_p$ statistic indicates that the best model contains $Intercept,X,X^2,X^3$
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="bic")
+title("BIC Forward SSS")
+```
+
+The $BIC$ statistic indicates that the best model contains $Intercept,X,X^2,X^3$
+
+#### BACKWARD SSS
+```{r}
+regfit.full<-regsubsets(Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),data = DF,nvmax = 10,method = "backward")
+
+reg.summary <-summary(regfit.full)
+
+mse_v <- reg.summary$rss / nrow(DF)
+
+plot(mse_v) 
+title(c("MSE versus model size for backward subset selection algorithm on training set.","Backward SSS"))
+
+```
+
+We see that there is a sharp drop in the training set $MSE$ until 2 predictors are included and there is a steady decrease as additional polynomial terms are included.  This is attributed to over  fitting to the training data. 
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="adjr2")
+title("Adjuster $R^2$ statistic Backward SSS")
+```
+
+We need to remember that with $R^2$ statistic the values closer to 1 are a better fit.  Among those with a value of 0.86 we see the full model $(Intercept) ,X, X^2, X^3$ has been selected. 
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="Cp")
+title("Mallow $C_p$ Backward SSS")
+```
+
+The $C_p$ statistic indicates that the best model contains $(Intercept) ,X, X^2, X^3$
+
+
+```{r,echo=FALSE}
+plot(regfit.full ,scale ="bic")
+title("BIC Backward SSS")
+```
+
+The $BIC$ statistic indicates that the best model contains $(Intercept) ,X, X^2, X^3$
+
+
+### e) 
+Now fit a lasso model to the simulated data, again using $X,X^2,
+. . . , X^10$ as predictors. Use cross-validation to select the optimal
+value of $\lambda$. Create plots of the cross-validation error as a function
+of $\lambda$. Report the resulting coefficient estimates, and discuss the
+results obtained.
+
+```{r}
+library (glmnet)
+x_lasso=model.matrix (Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),DF )[,-1]
+y_lasso=DF$Y
+cv.out =cv.glmnet (x_lasso,y_lasso,alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )[1:10 ,]
+```
+
+We see that the lasso for a value of lambda given by cross validation has driven all the extra model coedfficeints to 0 as expected. 
+
+### f) 
+Now generate a response vector Y according to the model
+$$Y = \beta_0 + \beta_7 X_7 + \epsilon$$,
+and perform best subset selection and the lasso. Discuss the
+results obtained.
+
+```{r}
+beta= rnorm(2,mean = 0,sd = 1)
+Y <-matrix(NA,nrow=100,ncol=1)
+Yhat <-matrix(NA,nrow = 100,ncol = 1)
+
+for (i in 1 : 100)
+{
+  Y[i]=beta[1] +beta[2]* X[i]^7 
+  
+  Yhat[i]=beta[1] +beta[2]* X[i]^7 
+}
+
+plot(X,Yhat,col='red')
+points(X,Y,pch='*',col='blue')
+title(main=sprintf( "Y = %f + %f X^7",beta[1] ,beta[2] ),cex=4.6)
+
+DF <- as.data.frame(X)
+DF <- cbind(DF,Yhat)
+names(DF) = c("X","Y")
+library(leaps)
+
+regfit.full<-regsubsets(Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),data = DF,nvmax = 10)
+
+reg.summary <-summary(regfit.full)
+
+plot(mse_v) 
+title(c("$Y=\beta_0+ \beta_1 X^7$ MSE versus model size for forward subset selection algorithm on training set.","Best SSS"))
+plot(regfit.full ,scale ="adjr2")
+title("Adjuster $R^2$ statistic Best SSS")
+
+plot(regfit.full ,scale ="Cp")
+title("$Y=\beta_0+ \beta_1 X^7$ Mallow $C_p$ Best SSS")
+
+plot(regfit.full ,scale ="bic")
+title("$Y=\beta_0+ \beta_1 X^7$ BIC Best  SSS")
+
+x_lasso=model.matrix (Y~X+I(X^2)+I(X^3)+I(X^4)+I(X^5)+I(X^6)+I(X^7)+I(X^8)+I(X^9)+I(X^10),DF )[,-1]
+y_lasso=DF$Y
+cv.out =cv.glmnet (x_lasso,y_lasso,alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )[1:10 ,]
+```
+
+All subset selection methods select the 7th term, but none have just that term and the intercept.  The adjusted RSS statistic is confused, we suspect because the coefficient for $X^7$ (randomly generated) was small. The other statistics for Best subset models include additional terms. The lasso with a regularization parameter chose by cross validation comes very close to correctly selecting the model $Y=\beta_0+ \beta_1 X^7$.  There is a $X^9$ term with a very small coefficient. 
+
+We note that this model may be difficult to fit since the range of the predictor is close to [-1,1] where a high order term like $x^7$ is relatively constant.
+
+#Chapter 6
+
+##Problem 9
+In this exercise, we will predict the number of applications received
+using the other variables in the College data set.
+
+### a) 
+Split the data set into a training set and a test set.
+```{r}
+rm(list = ls())
+library(ISLR)
+DF = College
+train=sample(nrow(DF), floor(nrow(DF)* 2/3))
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+```
+### b) 
+Fit a linear model using least squares on the training set, and
+report the test error obtained.
+```{r}
+names(DF)
+lm.fit <- lm(Apps ~ . , data=DF)
+summary(lm.fit)
+
+plot(predict (lm.fit), residuals (lm.fit))
+plot(predict (lm.fit), rstudent (lm.fit))
+plot(hatvalues (lm.fit ))
+
+
+plot(predict(lm.fit, DFTest)-DFTest$Apps)
+lm.test_mse <- mean((predict(lm.fit, DFTest) - DFTest$Apps)^2)
+
+mse_summary <- data.frame(method = "lm",MSE = lm.test_mse)
+```
+
+The test set for a linear model is 
+
+#### MSE = ```r lm.test_mse```
+
+### c) 
+Fit a ridge regression model on the training set, with $\lambda$ chosen
+by cross-validation. Report the test error obtained.
+
+```{r}
+library(glmnet)
+x_ridge=model.matrix (Apps~.,DFTrain )[,-1]
+y_ridge=DFTrain$Apps
+cv.out =cv.glmnet (x_ridge,y_ridge,alpha =0)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_ridge=glmnet (x_ridge,y_ridge,alpha =0,lambda = bestlam)
+predict (best_ridge ,type="coefficients",s=bestlam )
+
+
+x_ridge_test=model.matrix (Apps~.,DFTest )[,-1]
+y_ridge_test=DFTest$Apps
+
+ridge.pred=predict (best_ridge , newx=x_ridge_test)
+ridge.test_mse <- mean(( ridge.pred -y_ridge_test)^2)
+
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "ridge",MSE = ridge.test_mse))
+```
+
+
+The test set MSE for a ridge regression model where the regularization parameter is set by cross validation is
+
+#### MSE = ```r ridge.test_mse```
+
+
+### d) Fit a lasso model on the training set, with $\lambda$ chosen by cross-validation.
+Report the test error obtained, along with the number
+of non-zero coefficient estimates.
+
+```{r}
+x_lasso=model.matrix (Apps~.,DFTrain )[,-1]
+y_lasso=DFTrain$Apps
+cv.out =cv.glmnet (x_lasso,y_lasso,alpha =1)
+plot(cv.out)
+bestlam =cv.out$lambda.min
+bestlam
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )
+
+
+x_lasso_test=model.matrix (Apps~.,DFTest )[,-1]
+y_lasso_test=DFTest$Apps
+
+lasso.pred=predict (best_lasso , newx=x_lasso_test)
+lasso.test_mse <- mean(( lasso.pred -y_lasso_test)^2)
+
+coeff_lasso <- predict (best_lasso ,type="coefficients",s=bestlam )[1:18 ,]
+library(pander)
+pander(coeff_lasso)
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "lasso",MSE = lasso.test_mse))
+```
+
+The test set MSE for a lasso regression model where the regularization parameter is set by cross validation is
+
+#### MSE = ```r lasso.test_mse```
+
+All but one of the predictors was included in the lasso model with the best lambda selected by cross validation. 
+A more parsimonious model may help with inference so using the cross validation MSE chart we below we bump up lambda
+to $e^4.5$ to get a model with fewer predictors
+
+```{r}
+bestlam=exp(4.2)
+
+best_lasso=glmnet (x_lasso,y_lasso,alpha =1,lambda = bestlam)
+predict (best_lasso ,type="coefficients",s=bestlam )
+
+
+x_lasso_test=model.matrix (Apps~.,DFTest )[,-1]
+y_lasso_test=DFTest$Apps
+
+lasso.pred=predict (best_lasso , newx=x_lasso_test)
+lasso.test_mse <- mean(( lasso.pred -y_lasso_test)^2)
+
+mse_summary <- rbind(mse_summary,data.frame(method = "lasso-reduced",MSE = lasso.test_mse))
+
+coeff_lasso <- predict (best_lasso ,type="coefficients",s=bestlam )[1:18 ,]
+library(pander)
+pander(coeff_lasso)
+```
+
+
+### e) 
+```Fit a PCR model on the training set, with M chosen by cross-validation.
+Report the test error obtained, along with the value
+of M selected by cross-validation.```
+
+```{r}
+pcr.test_mse=1
+library (pls)
+pcr.fit=pcr(Apps~., data=DFTrain ,scale=TRUE ,validation ="CV")
+summary(pcr.fit )
+validationplot(pcr.fit ,val.type="MSEP")
+
+pcr.pred=predict (pcr.fit ,DFTest, ncomp =8)
+pcr.test_mse <- mean((pcr.pred -DFTest$Apps)^2)
+
+mse_summary <- rbind(mse_summary,data.frame(method = "pcr",MSE = pcr.test_mse))
+```
+
+The test set MSE for a principal components regression is
+
+#### MSE = ```r pcr.test_mse```
+
+### f) 
+```Fit a PLS model on the training set, with M chosen by cross-validation.
+Report the test error obtained, along with the value
+of M selected by cross-validation.```
+
+```{r}
+plsr.fit=plsr(Apps~., data=DFTrain ,scale=TRUE ,validation ="CV")
+summary(plsr.fit )
+validationplot(plsr.fit ,val.type="MSEP")
+
+plsr.pred=predict (plsr.fit ,DFTest, ncomp =8)
+plsr.test_mse <- mean((plsr.pred -DFTest$Apps)^2)
+
+
+mse_summary <- rbind(mse_summary,data.frame(method = "plsr",MSE = plsr.test_mse))
+```
+
+
+The test set MSE for a partial least quares regression is
+
+#### MSE = ```r plsr.test_mse```
+
+
+
+### g) 
+```Comment on the results obtained. How accurately can we predict
+the number of college applications received? Is there much
+difference among the test errors resulting from these five approaches?```
+
+
+```{r}
+pander(mse_summary)
+```
+
+We see the linear model is the best but that the lasso is competitive 
+
+```{r}
+
+plot(predict(lm.fit, DFTest)-DFTest$Apps,pch='*',col='red')
+points(plsr.pred -DFTest$Apps,pch="+",col='blue')
+points(lasso.pred -y_lasso_test,pch="#",col='green')
+legend("topleft", title.col = "black",
+  c("lm","plsr", "lasso" ),
+  text.col =c("red","blue", "green"),
+  text.font = 1, cex = 1)
+title(c("Y-Yhat for a selection of methods","Linear, Partial Least Squares, Lasso"))
+```
+
+
+
+#Chapter 7
+
+##Problem 6
+In this exercise, you will further analyze the Wage data set considered
+throughout this chapter.
+
+### a) 
+Perform polynomial regression to predict wage using age. Use
+cross-validation to select the optimal degree d for the polynomial.
+What degree was chosen, and how does this compare to
+the results of hypothesis testing using ANOVA? Make a plot of
+the resulting polynomial fit to the data.
+
+```{r}
+rm(list = ls())
+library(ISLR)
+library(ggplot2)
+
+attach(Wage)  
+
+max.poly <- 7
+
+cvFunc <- function(age, wage, degree)
+{
+  preds <- numeric(length(age))
+    for(i in 1:length(age))
+    {
+        #Here is where we eageclude i from the training set
+        age.in <- age[-i]
+        age.out <- age[i]
+        
+        #Single test point
+        wage.in <- wage[-i]
+        wage.out <- age[i]
+        
+        fit <- lm(wage.in ~ poly(age.in, degree=degree) )
+        preds[i]<- predict(fit, newdata=data.frame(age.in=age.out))
+    }
+  return(sum((wage-preds)^2))
+}
+ 
+cv.err <- data.frame(sq_err=numeric(max.poly))
+for(i in 1:max.poly)
+{
+  cv.err[i,1] <- cvFunc(age, wage, degree=i)
+}
+
+best_degree <- which.min(cv.err$sq_err)
+
+lmpoly.fit <- lm(wage ~ poly(age, degree=best_degree) )
+
+agelims =range(age)
+age.grid=seq (from=agelims [1], to=agelims [2])
+
+preds=predict (lmpoly.fit ,newdata =data.frame(age=age.grid),se=TRUE)
+
+se.bands=cbind(preds$fit +2* preds$se.fit ,preds$fit -2* preds$se.fit)
+
+plot(age ,wage ,xlim=agelims ,cex =.5, col ="darkgrey ")
+
+lines(age.grid ,preds$fit ,lwd =2, col =" blue")
+matlines (age.grid ,se.bands ,lwd =1, col =" blue",lty =3)
+title("Polynomial fit using degree selected by LOOCV")
+```
+
+
+```{r}
+fit.1= lm(wage~age ,data=Wage)
+fit.2= lm(wage~poly(age ,2) ,data=Wage)
+fit.3= lm(wage~poly(age ,3) ,data=Wage)
+fit.4= lm(wage~poly(age ,4) ,data=Wage)
+fit.5= lm(wage~poly(age ,5) ,data=Wage)
+fit.6= lm(wage~poly(age ,6) ,data=Wage)
+fit.7= lm(wage~poly(age ,7) ,data=Wage)
+anova(fit.1, fit.2, fit.3, fit.4, fit.5,fit.6,fit.7)
+
+```
+
+According to the ANOVA results, the fourth order polynomial is sufficient.  Higher order terms are not justified by the F test comparing fit.5 against fit.4
+
+Leave one out cross validation has selected 6 as the best order, but looking at the cross validation error we see
+that the error for the fourth order model is very close to the fifth and sixth order model.  We could justifiably choose
+4 from these results as the best model based on the desire to have a low error and a parsimonious model.
+
+```{r}
+library(pander)
+pander(cv.err)
+```
+
+
+### b) 
+Fit a step function to predict wage using age, and perform cross-validation
+to choose the optimal number of cuts. Make a plot of
+the fit obtained.
+
+```{r}
+max.cut <- 10
+age=Wage$age
+wage=Wage$wage
+
+cvFunc <- function(age, wage, cut_val)
+{
+  preds <- numeric(length(age))
+    for(i in 1:length(age))
+    {
+        #Here is where we eageclude i from the training set
+        age.in <- age[-i]
+        age.out <- age[i]
+        
+        #Single test point
+        wage.in <- wage[-i]
+        wage.out <- age[i]
+        
+        #fit <- lm(wage.in ~ cut(age.in, cut_val) )
+        
+        # See below - Error in model.frame.default(Terms, newdata, na.action = na.action, xlev = object$xlevels) : 
+        #factor cut(age.in, cut_val) has new level
+        #preds[i]<- predict(fit, newdata=data.frame(age.in=age.out))
+        #preds[i]<- predict(fit, newdata=data.frame(age.in=cut(age ,best_cut)[age.out]))
+    }
+  return(sum((wage-preds)^2))
+}
+
+ 
+cv.err <- data.frame(sq_err=numeric(max.cut))
+
+for(i in 1:max.cut)
+{
+  cv.err[i,1] <- cvFunc(age, wage, cut_val=i)
+}
+
+best_cut <- 7 # LOOCV algorithm error which.min(cv.err$sq_err)
+
+lmcut.fit <- lm(wage~cut(age ,best_cut) ,Wage)
+
+
+agelims =range(age)
+age.grid=seq (from=agelims [1], to=agelims [2])
+
+preds=predict (lmcut.fit ,newdata =data.frame(age=age.grid),se=TRUE)
+
+se.bands=cbind(preds$fit +2* preds$se.fit ,preds$fit -2* preds$se.fit)
+
+plot(age ,wage ,xlim=agelims ,cex =.5, col ="darkgrey ")
+
+lines(age.grid ,preds$fit ,lwd =2, col =" blue")
+matlines (age.grid ,se.bands ,lwd =1, col =" blue",lty =3)
+title("Step function fit using best cut number from working LOOCV")
+```
+
+
+There was one successful run of the LOOCV for the step function regression - then I ran into the error captured in the code comments above.  Much effort was expended to get it working again, but we ran out of time so the best_cut was hard coded to be the value I recall from the one run that worked. 
+
+Here's what we learned from debugging - the cut function creates a factor variable
+```{r}
+plot(age,cut(age ,best_cut))
+```
+
+The expression used in the plot ```predict (lmcut.fit ,newdata =data.frame(age=age.grid),se=TRUE)``` is able to convert the data frame to a factor and calculate the predicted values.  For other cases like a single value in LOOCV or a split of the data as in a validation set we got the error that reads like there was a problem converting the data to a factor.  I checked the type of the data in all cases and verified it was an int. I tried converting the input data to a factor (see code) but that did not work either. 
+
+#Chapter 7
+
+##Problem 9
+This question uses the variables dis (the weighted mean of distances
+to five Boston employment centers) and nox (nitrogen oxides concentration
+in parts per 10 million) from the Boston data. We will treat
+dis as the predictor and nox as the response.
+### a) 
+Use the poly() function to fit a cubic polynomial regression to
+predict nox using dis. Report the regression output, and plot
+the resulting data and polynomial fits.
+
+```{r}
+rm(list = ls())
+library(MASS)
+attach(Boston)
+lmpoly.fit <- lm(nox ~ poly(dis, degree=3) )
+
+dislims =range(dis)
+dis.grid=seq (from=dislims [1], to=dislims [2])
+
+preds=predict (lmpoly.fit ,newdata =data.frame(dis=dis.grid),se=TRUE)
+
+se.bands=cbind(preds$fit +2* preds$se.fit ,preds$fit -2* preds$se.fit)
+
+plot(dis ,nox ,xlim=dislims ,cex =.5, col ="darkgrey ")
+
+lines(dis.grid ,preds$fit ,lwd =2, col =" blue")
+matlines (dis.grid ,se.bands ,lwd =1, col =" blue",lty =3)
+title("Polynomial fit degree=3")
+```
+
+### b) 
+Plot the polynomial fits for a range of different polynomial
+degrees (say, from 1 to 10), and report the associated residual
+sum of squares.
+
+```{r,fig.height=4.7, fig.width=3.7}
+max.poly<-10
+nox<-Boston$nox
+dis<-Boston$dis
+plotFunc <- function(dis, nox, degree_val)
+{        
+  lmpoly.fit <- lm(nox ~ poly(dis, degree=degree_val) )
+  
+  dislims =range(dis)
+  dis.grid=seq (from=dislims [1], to=dislims [2])
+  
+  preds=predict (lmpoly.fit ,newdata =data.frame(dis=dis.grid),se=TRUE)
+  
+  se.bands=cbind(preds$fit +2* preds$se.fit ,preds$fit -2* preds$se.fit)
+  
+  plot(dis ,nox ,xlim=dislims ,cex =.5, col ="darkgrey ")
+  
+  lines(dis.grid ,preds$fit ,lwd =2, col =" blue")
+  matlines (dis.grid ,se.bands ,lwd =1, col =" blue",lty =3)
+  title(c(sprintf("degree=%d   RSS=%f",degree_val,sum(lmpoly.fit$residuals^2))),cex=0.5, font.main= 4)
+  
+}
+ 
+for(i in 1:max.poly)
+{
+  plotFunc(dis, nox, degree_val=i)
+}
+```
+
+
+### c) 
+Perform cross-validation or another approach to select the optimal
+degree for the polynomial, and explain your results.
+```{r}
+
+max.poly<-10
+
+dis=Boston$dis
+nox=Boston$nox
+
+
+cvFunc <- function(dis, nox, degree)
+{
+  preds <- numeric(length(dis))
+    for(i in 1:length(dis))
+    {
+        #Here is where we exclude i from the training set
+        dis.in <- dis[-i]
+        dis.out <- dis[i]
+        
+        #Single test point
+        nox.in <- nox[-i]
+        nox.out <- dis[i]
+        
+        fit <- lm(nox.in ~ poly(dis.in, degree=degree) )
+        preds[i]<- predict(fit, newdata=data.frame(dis.in=dis.out))
+    }
+  return(sum((nox-preds)^2))
+}
+ 
+cv.err <- data.frame(sq_err=numeric(max.poly))
+for(i in 1:max.poly)
+{
+  cv.err[i,1] <- cvFunc(dis, nox, degree=i)
+}
+
+which.min(cv.err$sq_err)
+library(pander)
+pander(cv.err)
+
+plot(cv.err$sq_err)
+
+```
+
+We've used leave one out cross validation above to select the best degree based on the $CV_n$ error rate. Interestingly, there is a marked drop in the $CV_n$ at degree of 10.  The best degree based on the LOOCV algorithm is 3.
+
+
+
+### d) 
+Use the bs() function to fit a regression spline to predict nox
+using dis. Report the output for the fit using four degrees of
+freedom. How did you choose the knots? Plot the resulting fit.
+```{r}
+library (splines )
+quantileLocs <- quantile(dis,ppoints(10))
+fit=lm(nox~bs(dis ,knots =quantileLocs ),data=Boston)
+dislims =range(dis)
+dis.grid=seq (from=dislims [1], to=dislims [2])
+pred=predict (fit ,newdata =list(dis =dis.grid),se=T)
+plot(dis ,nox ,col =" gray ")
+lines(dis.grid ,pred$fit ,lwd =2)
+lines(dis.grid ,pred$fit +2* pred$se ,lty ="dashed")
+lines(dis.grid ,pred$fit -2* pred$se ,lty ="dashed")
+```
+
+We chose the knots to be distributed according to the deciles of the data. 
+
+
+### e) 
+Now fit a regression spline for a range of degrees of freedom, and
+plot the resulting fits and report the resulting RSS. Describe the
+results obtained.
+
+```{r, fig.height=4.7, fig.width=3.7}
+max.df<-10
+nox<-Boston$nox
+dis<-Boston$dis
+plotFunc <- function(dis, nox, degree_val)
+{
+  fit=smooth.spline(dis ,nox ,df =degree_val)
+  pred=predict (fit ,se=T)
+  plot(dis ,nox ,col =" gray ")
+  lines(fit ,col ="red ",lwd =2)
+  RSS <- sum(residuals(fit)^2)
+  
+  title(c(sprintf("degree=%d     RSS=%f",degree_val,RSS)),cex=0.5, font.main= 4)
+
+}
+ 
+for(i in 1:max.poly)
+{
+  plotFunc(dis, nox, degree_val=i)
+}
+
+
+```
+
+
+### f) 
+Perform cross-validation or another approach in order to select
+the best degrees of freedom for a regression spline on this data.
+Describe your results.
+
+```{r}
+
+dis=Boston$dis
+nox=Boston$nox
+
+cvFunc <- function(dis, nox, degree_val)
+{
+  preds <- numeric(length(dis))
+    for(i in 1:length(dis))
+    {
+        #Here is where we exclude i from the training set
+        dis.in <- dis[-i]
+        dis.out <- dis[i]
+        
+        #Single test point
+        nox.in <- nox[-i]
+        nox.out <- dis[i]
+        
+        fit=smooth.spline(dis.in ,nox.in ,df =degree_val)
+
+        preds[i]<- predict(fit, dis.out)$y
+    }
+  return(sum((nox-preds)^2))
+}
+ 
+cv.err <- data.frame(sq_err=numeric(max.poly))
+for(i in 1:max.df)
+{
+  cv.err[i,1] <- cvFunc(dis, nox, degree_val=i)
+}
+
+which.min(cv.err$sq_err)
+library(pander)
+pander(cv.err)
+
+plot(cv.err$sq_err)
+```
+
+
+We've used leave one out cross validation above to select the best degree based on the $CV_n$ error rate. There are two candidates for best degree based on $CV_n$ degree 1 and degree 10.  
+
+#Chapter 7
+
+##Problem 10
+This question relates to the College data set.
+
+### a) 
+Split the data into a training set and a test set. Using out-of-state
+tuition as the response and the other variables as the predictors,
+perform forward stepwise selection on the training set in order
+to identify a satisfactory model that uses just a subset of the
+predictors.
+
+```{r}
+rm(list = ls())
+library(ISLR)
+attach(College)
+
+train=sample(nrow(College), floor(nrow(College)* 2/3))
+DF<-College
+DFTrain <-DF[train,]
+DFTest <-DF[-train,]
+
+library(pander)
+pander(names(DF))
+
+library(leaps)
+regfit.full<-regsubsets(Outstate~.,data = DFTrain,method = "forward",nvmax = 18)
+
+reg.summary <- summary(regfit.full)
+
+mse_v <- reg.summary$rss / nrow(DF)
+
+plot(mse_v) 
+title(c("MSE versus model size for forward subset selection algorithm on training set.","Forward SSS"))
+
+plot(regfit.full ,scale ="bic")
+title("$BIC$ Forward SSS")
+
+model_fss8 <- coef(regfit.full,8)
+pander(names(model_fss8))
+```
+
+### b) 
+Fit a GAM on the training data, using out-of-state tuition as
+the response and the features selected in the previous step as
+the predictors. Plot the results, and explain your findings.
+
+```{r,fig.height=4.7, fig.width=3.7}
+library(gam)
+
+gam.fit=gam(Outstate~Private+s(Room.Board,4)+s(Personal,4)+s(Terminal,4)+s(S.F.Ratio,4)+s(perc.alumni)+s(Expend,4)+s(Grad.Rate,4) ,data=DFTrain)
+
+plot(gam.fit, se=TRUE ,col ="blue ")
+
+```
+
+We have used the gam function to fit a univariate smoothing spline with 4 degrees of freedom to each predictor.  The plots show the univariate fits.
+One of the predictors selected by the forward SSS algorithm is a factor and is not fit to a smoothing spline. 
+There is strong evidence of non linear relationships in the data.  The variables ${Personal, S.F.Ratio, perc.alumni, expend}$ show this particularly. 
+
+### c) 
+Evaluate the model obtained on the test set, and explain the
+results obtained.
+
+```{r}
+preds=predict (gam.fit,newdata =DFTest)
+
+RSS <- sum((preds-DFTest$Outstate)^2)
+TSS <- sum((DFTest$Outstate - mean(DFTest$Outstate))^2)
+RS2_Test <- 1- (RSS/TSS)
+
+plot(DFTest$Outstate,DFTest$Outstate-preds)
+title(c("Residual plot for test set",sprintf("R-Squared = %f",RS2_Test)))
+
+preds=predict (gam.fit,newdata =DFTrain)
+RSS <- sum((preds-DFTrain$Outstate)^2)
+TSS <- sum((DFTrain$Outstate - mean(DFTrain$Outstate))^2)
+RS2_Train <- 1- (RSS/TSS)
+```
+
+We see no significant trend in the residual plot, indicating that there is no unaccounted for non-linear relationships in the model.
+We also see that the training and test set  $R^2$ statistic indicate a reasonable fit.  As expected the test $R^2$ statistic is below the
+training $R^2$ value. 
+
+### d) 
+For which variables, if any, is there evidence of a non-linear
+relationship with the response?
+
+The variables ${Personal, S.F.Ratio, perc.alumni, expend}$ particularly show a non -linear relationship with the response.
+

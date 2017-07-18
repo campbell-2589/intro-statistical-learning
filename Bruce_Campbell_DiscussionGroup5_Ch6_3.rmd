@@ -1,0 +1,83 @@
+---
+title: "Bruce Campbell ST-617 Discussion Group 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 6
+
+##Problem 3
+```Suppose we estimate the regression coefficients in a linear regression
+model by minimizing```
+
+$$\sum\limits_{i=1}^{n} \big(y_i - \beta_0 + \sum\limits_{j=1}^{p}\beta_j x_j  \big)^2 \;\;\;  : \;\; \sum\limits_{j=1}^{p}  \big| \beta_j \big| \leq s$$
+
+```for a particular value of s. For parts (a) through (e), indicate which
+of i. through v. is correct. Justify your answer.```
+
+i. Increase initially, and then eventually start decreasing in an
+inverted U shape.
+ii. Decrease initially, and then eventually start increasing in a
+U shape.
+iii. Steadily increase.
+iv. Steadily decrease.
+v. Remain constant.
+
+
+The type of regression above is a lasso where $s \sim \frac{1}{\lambda}$.  When performing the optimization step of fitting the coefficients, some are driven to zero due to the corners of the ball in $\ell^1$.  As the parameter $\lambda$ increases, the equivalent parameter $s$ decreases.  When $s=0$ all non intercept coefficients are zero. 
+
+
+### a) 
+As we increase s from 0, the training RSS will:
+
+ii) Decrease and then eventually start to increase. 
+
+When $s=0$, if the predictors are standardized - the intercept is the mean of the response and $RSS=TSS$. 
+As we increase s, additional predictors are added to the model - decreasing the error. At some point noise or redundant features will be added and this will increase the error.  The speed of the increase from the minimum will be determined by the quality of additional predictors.  If all are relevant, then the final error at large s may be close to the minimum. 
+
+
+### b) 
+Repeat (a) for test RSS.
+
+ii) Decrease and then eventually start to increase. 
+
+The same argument as above regarding the shape - but we do expect RSS(Training) < RSS(Test) in general.
+
+### c) 
+Repeat (a) for variance.
+
+iii) The variance will steadily increase
+
+Model flexibility increases as we increase $s$ and more coefficients are non-zero.  
+This increases the variance as the additional model flexibility allows for over fitting of training data. 
+That 
+
+
+### d) 
+Repeat (a) for (squared) bias.
+
+iv) The bias will steadily decrease
+
+Model flexibility increases as we increase $s$ and more coefficients are non-zero.  
+This decreases the bias due to model error. 
+
+
+### e) 
+Repeat (a) for the irreducible error.
+
+v) The irreducible error will remain constant as the regularization parameter changes.  
+
+The irreducible error is independent of the model. 

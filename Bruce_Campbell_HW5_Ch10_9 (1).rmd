@@ -1,0 +1,122 @@
+---
+title: "Bruce Campbell ST-617 Homework 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=5)
+knitr::opts_chunk$set(fig.width=7)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+`r date()`
+
+```{r}
+rm(list = ls())
+set.seed(7)
+```
+
+#Chapter 10
+
+##Problem 9. 
+```Consider the USArrests data. We will now perform hierarchical clustering
+on the states.```
+### a) 
+```Using hierarchical clustering with complete linkage and
+Euclidean distance, cluster the states.```
+
+```{r}
+attach(USArrests)
+DF <- USArrests
+
+library(ggplot2)
+require(GGally)
+ggpairs(DF) + 
+  theme(axis.line=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())
+
+
+hc.complete =hclust (dist(DF), method ="complete")
+plot(hc.complete)
+```
+
+### b) 
+```Cut the dendrogram at a height that results in three distinct
+clusters. Which states belong to which clusters?```
+
+```{r}
+cut.hc <- cutree (hc.complete , 3)
+
+results.cut <- data.frame(states = rownames(DF),cluster=cut.hc,UrbanPop=DF$UrbanPop)
+results.cut <- results.cut[order(results.cut$cluster),]
+dotchart(results.cut$cluster,results.cut$states,cex = 0.7)
+```
+
+
+### c) 
+```Hierarchically cluster the states using complete linkage and Euclidean
+distance, after scaling the variables to have standard deviation
+one.```
+
+```{r}
+hc.complete.scaled =hclust (dist(data.frame(scale(DF,center = FALSE,scale = TRUE))), method ="complete")
+plot(hc.complete.scaled)
+
+cut.hc.scaled <- cutree (hc.complete.scaled , 3)
+
+results.cut.scaled <- data.frame(states = rownames(DF),cluster=cut.hc.scaled,UrbanPop=DF$UrbanPop)
+results.cut.scaled <- results.cut.scaled[order(results.cut.scaled$cluster),]
+dotchart(results.cut.scaled$cluster,results.cut.scaled$states,cex = 0.7)
+
+```
+
+### d) 
+```What effect does scaling the variables have on the hierarchical
+clustering obtained? In your opinion, should the variables be
+scaled before the inter-observation dissimilarities are computed?
+Provide a justification for your answer.```
+
+Scaling changes the partitioning of the states in the 3 clusters.  The cluster membership count is less balanced. We surmise this is because with scaling the UrbanPop feature is given more weight and assult is given less weight in the calculation of the euclidian distance matrix between the sample points. 
+
+In general when using euclidian distance as a similarity measure variables should be scaled to give equal weights to them.  We can weight variables unevenly if we know which ones are more important. 
+
+Three of the variables are in units of incidents per 100,000 population but the UrbanPop is a numeric percent.  We can see that when we scale the variables the UrbanPop.  Below we look at the 2 sample t-test for the differences in means between the cluster urbanpop levels for scaled and non-scaled data.  We see that the p-values indicate that means are all different for the scaled data, but for the unscaled data we must accept the null hypothese that the means are the same for cluster 1 and 2. 
+
+
+```{r}
+dotchart(results.cut.scaled$UrbanPop,results.cut.scaled$states,cex = 0.7)
+
+# Non Scaled t-test for difference in urban pop between the three clusters
+cluster1.urbanpop <- results.cut[results.cut$cluster==1,"UrbanPop"]
+
+cluster2.urbanpop <- results.cut[results.cut$cluster==2,"UrbanPop"]
+
+cluster3.urbanpop <- results.cut[results.cut$cluster==3,"UrbanPop"]
+
+t.test(cluster1.urbanpop,cluster2.urbanpop)
+
+t.test(cluster2.urbanpop,cluster3.urbanpop)
+
+t.test(cluster3.urbanpop,cluster1.urbanpop)
+
+#Scaled t-test for difference in urban pop between the three clusters
+cluster1.urbanpop.scaled <- results.cut.scaled[results.cut.scaled$cluster==1,"UrbanPop"]
+
+cluster2.urbanpop.scaled <- results.cut.scaled[results.cut.scaled$cluster==2,"UrbanPop"]
+
+cluster3.urbanpop.scaled <- results.cut.scaled[results.cut.scaled$cluster==3,"UrbanPop"]
+
+t.test(cluster1.urbanpop.scaled,cluster2.urbanpop.scaled)
+
+t.test(cluster2.urbanpop.scaled,cluster3.urbanpop.scaled)
+
+t.test(cluster3.urbanpop.scaled,cluster1.urbanpop.scaled)
+
+```

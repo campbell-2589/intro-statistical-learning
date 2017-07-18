@@ -1,0 +1,67 @@
+---
+title: "Bruce Campbell ST-617 HW 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev = 'pdf')
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(fig.height=11)
+knitr::opts_chunk$set(fig.width=8)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=TRUE)
+```
+
+`r date()`
+
+#Chapter 4
+
+##Problems 6 and 9
+
+###Problem 6
+For a logistic regression model we fit 
+$$p(X) = \frac{e^{\beta_0 + \beta_1 X_1 + \beta_2 X_2}}{1+e^{\beta_0 + \beta_1 X_1 + \beta_2 X_2}}$$
+
+```{r}
+
+beta_0=-6.0
+beta_1= 0.05
+beta_2=1.0
+
+x_1=40.0
+x_2=3.5
+
+P_x <- function( beta_0,beta_1,beta_2,x_1,x_2) 
+ {
+   e_x_dot_y<- exp(beta_0+beta_1*x_1+beta_2*x_2)
+   result = e_x_dot_y / (1 + e_x_dot_y)
+   return(unname(result))
+ }
+
+prob_A = P_x( beta_0,beta_1,beta_2,x_1,x_2) 
+```
+
+If a student studies 40 hours and has a GPA of 3.5 the estimated probability of getting an A is `r prob_A`
+
+### b) Calculate the number of hours of study needed to have a 50% chance of getting an A
+Let $\alpha = \beta_0+\beta_2 * x_2 = -2.5$ and treat $x_1$ as an unknown in the log-odds equation
+
+$$ log \left( \frac{P(X)}{1-P(X)} \right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 $$
+
+Which simplifies to $x_1 = \frac{2}{3} * \frac{1}{0.05} = 13.33$ when we put it 3.5 for $x_2$ and 0.5 for $P(X)$
+
+
+###Problem 9
+#### a)
+We use the definition of odds 
+
+$$ odds = \frac{P(X)}{1-P(X)}$$ 
+
+to calculate the probability.  If the odds are .37 then $P(X) = \frac{.37}{1.37} = .27$ So the fraction of people defaulting with an odds of .37 is .27
+
+#### b) 
+If someone has a 16% chance of default on a credit card payment then the associated odds is $\frac{.16}{(1- .16)} = .19$.
+ 
