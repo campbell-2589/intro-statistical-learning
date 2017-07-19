@@ -1,0 +1,235 @@
+---
+title: "ST 502 HW 3 Extra Problem 1"
+author: "Bruce Campbell"
+date: "January 29, 2017"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE} 
+rm(list = ls())
+knitr::opts_chunk$set(dev = 'png')
+knitr::opts_chunk$set(fontsize=13)
+knitr::opts_chunk$set(dpi=600)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_chunk$set(fig.height=6)
+knitr::opts_chunk$set(fig.width=6)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+```
+
+Extra Problem 1: Using the CHIS data set on the website
+
+- (a) Find the true proportion of Asian students in the population and the true variance.
+- (b) Use R to generate 5000 samples each of size n=8 from the `Asian' indicator variable in
+the CHIS dataset.
+- (c) Create a large sample (use normal approximation to binomial, aka CLT, with fnite
+sample correction) confdence interval for p for each sample. Be sure to use the estimated
+standard error (see page 214) rather than the truth.
+- (d) Report the fraction of intervals that contained p and the average length.
+- (e) Repeat the above 2 steps for n=50, n=100, n=1000. Report the fraction of intervals
+that contain p for each interval as well as the average width of the intervals.
+- (f) What do you notice about the observed coverage probability as n grows? Give an
+explanation.
+
+
+```{r}
+library(pander)
+library(plyr)
+library(dplyr)
+library(readr)
+
+CHIS <- read_csv("C:/E/GD/NCSU/st-502/InstructorFiles/CHIS.csv")
+summary(CHIS)
+
+#Sanity Check
+# library(ggplot2)
+# p <- ggplot(CHIS,aes( factor(Asian), Height))
+# p + geom_boxplot() + coord_flip()
+# 
+# p <- ggplot(CHIS,aes( factor(Asian), Weight))
+# p + geom_boxplot() + coord_flip()
+#  
+# p <- ggplot(CHIS,aes( factor(Asian), BMI))
+# p + geom_boxplot() + coord_flip()
+
+trueProportion <- sum(CHIS$Asian)/nrow(CHIS)
+
+p<-trueProportion
+
+trueVariance <- p*(1-p)
+
+pander(data.frame(p=trueProportion,Var=trueVariance), caption = "True proportion and variance")
+
+```
+
+
+### Generate CI's  
+- (c) Create a large sample (use normal approximation to binomial, aka CLT, with fnite
+sample correction) confdence interval for p for each sample. Be sure to use the estimated
+standard error (see page 214) rather than the truth.
+- (d) Report the fraction of intervals that contained p and the average length.Use R to generate 5000 samples each of size n=8 from the `Asian' indicator variable in the CHIS dataset.
+
+The $1-\alpha$ CI for $\hat{p}$ is given by $\bar{X} \pm z(\frac{\alpha}{2}) s^2_{\hat{p}}$.  Where $s^2_{\hat{p}}$ is the estimage SE given by
+
+
+$S^2_{\hat{p}} = \frac{\hat{p}(1-\hat{p})}{ n-1} (1 - \frac{n}{N})$
+
+Here we choose an $\alpha$ of $0.05$ which yields a 95% CI for $p$
+
+```{r}
+
+sampleSize <- 8
+numSamples <- 5000 
+#Define a function to run the simulations
+run.CI <- function(sampleSize, numSamples)
+{
+  z <- 1.96
+  
+  print(sampleSize)
+  
+  print(numSamples)
+  
+  totalSamples <- choose(nrow(CHIS),sampleSize)
+  
+  pander(data.frame(totalSamples), "Total Possible Samples under SRS")
+  
+  CIs <- data.frame(matrix(ncol = 5,nrow = numSamples))
+  colnames(CIs) <- c("Xbar", "s2","left","right","containsP")
+  for(i in 1:numSamples)
+  {
+    srsIndex <- sample(nrow(CHIS), sampleSize, replace = FALSE)
+    srs <- CHIS[srsIndex,]
+    Xbar <- mean(srs$Asian)
+    
+    s2 <- Xbar * (1-Xbar) / (sampleSize-1 ) * (1-sampleSize/nrow(CHIS))
+    
+    CIs[i,]$Xbar <- Xbar
+    
+    CIs[i,]$s2 <- s2
+    
+    CIs[i,]$left <- Xbar - z*sqrt(s2)
+    
+    CIs[i,]$right <- Xbar +  z*sqrt(s2)
+    
+    CIs[i,]$containsP <- trueProportion >= CIs[i,]$left & trueProportion <= CIs[i,]$right
+    
+  }
+  return(CIs)
+
+}
+
+df <-run.CI(sampleSize,numSamples)
+
+proportion <-sum(df$containsP)/numSamples
+
+hist(as.numeric( df$Xbar) ,sampleSize, main = c("Histogram of sample means", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") ))
+
+pander(data.frame(proportion), caption = "Proportion of CI's containing the true mean")
+
+
+df$index <- 1:nrow(df) 
+
+require(ggplot2)
+titleString <-  c("Sample of CI's ", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") )
+ggplot(df[1:100,], aes(x = index, y = Xbar)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymax = right, ymin = left ) ) +  geom_hline(aes(yintercept=trueProportion),color="red") +ggtitle( titleString)
+
+
+```
+
+
+
+##Repeat the above 2 steps for n=50, n=100, n=1000. Report the fraction of intervals
+that contain p for each interval as well as the average width of the intervals.
+
+### N=50
+
+```{r}
+sampleSize <- 50
+
+df <-run.CI(sampleSize,numSamples)
+
+proportion <-sum(df$containsP)/numSamples
+
+hist(as.numeric( df$Xbar) ,sampleSize, main = c("Histogram of sample means", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") ))
+
+pander(data.frame(proportion), caption = "Proportion of CI's containing the true mean")
+
+
+df$index <- 1:nrow(df) 
+
+require(ggplot2)
+titleString <-  c("Sample of CI's ", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") )
+ggplot(df[1:100,], aes(x = index, y = Xbar)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymax = right, ymin = left ) ) +  geom_hline(aes(yintercept=trueProportion),color="red") +ggtitle( titleString)
+
+```
+
+
+
+### N=100
+
+```{r}
+sampleSize <- 100
+
+df <-run.CI(sampleSize,numSamples)
+
+proportion <-sum(df$containsP)/numSamples
+
+hist(as.numeric( df$Xbar) ,sampleSize, main = c("Histogram of sample means", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") ))
+
+pander(data.frame(proportion), caption = "Proportion of CI's containing the true mean")
+
+
+df$index <- 1:nrow(df) 
+
+require(ggplot2)
+titleString <-  c("Sample of CI's ", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") )
+ggplot(df[1:100,], aes(x = index, y = Xbar)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymax = right, ymin = left ) ) +  geom_hline(aes(yintercept=trueProportion),color="red") +ggtitle( titleString)
+
+```
+
+
+###What do you notice about the observed coverage probability as n grows? Give an
+explanation.
+
+
+The coverage probability increases as the sample size grows.  This is due to the the convergence of the sample mean to the true mean and the convergence of the sampling distribution of the sample mean to the normal distribution.  This convergence of the sampling distribution is what makes the confidence interval limits accurate.  By the design of the randmo confidance interval we expect the coverage to converge to .95 as the sample size grows and the number of samples increases. 
+
+
+For illustration we calculate one more simulation with a large sample size and a high number of samples. 
+
+
+### 
+
+```{r}
+sampleSize <- 500
+numSamples <- 10000
+df <-run.CI(sampleSize,numSamples)
+
+proportion <-sum(df$containsP)/numSamples
+
+hist(as.numeric( df$Xbar) ,sampleSize, main = c("Histogram of sample means", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") ))
+
+pander(data.frame(proportion), caption = "Proportion of CI's containing the true mean")
+
+
+df$index <- 1:nrow(df) 
+
+require(ggplot2)
+titleString <-  c("Sample of CI's ", paste("sample size= ",sampleSize,sep = " "),paste("Number of Samples =", numSamples,sep = " ") )
+ggplot(df[1:100,], aes(x = index, y = Xbar)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymax = right, ymin = left ) ) +  geom_hline(aes(yintercept=trueProportion),color="red") +ggtitle( titleString)
+
+```
+

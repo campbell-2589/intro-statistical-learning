@@ -1,0 +1,76 @@
+---
+title: "ST 502 HW 3 Chapter 7 Problem 35"
+author: "Bruce Campbell"
+date: "January 24, 2017"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE} 
+rm(list = ls())
+knitr::opts_chunk$set(dev = 'png')
+knitr::opts_chunk$set(fontsize=13)
+knitr::opts_chunk$set(dpi=600)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_chunk$set(fig.height=6)
+knitr::opts_chunk$set(fig.width=6)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+```
+
+In this problem we will investiate the calculation of estimates of population parameters from a SRS. 
+
+
+```{r}
+library(pander)
+sampleSize<-25
+populationSize<-2000
+
+sample <- c(104,109,111,109,87,
+            86,80,119,88,122,
+            91,103,99,108,96,
+            104,98,98,83,107,
+            79,87,94,92,97
+            )
+
+pander(data.frame(mean(sample)),
+       caption  ="The sample mean is an unbiased estimate of the population mean")
+
+#Calculate unboased estimate of population variance.
+Xbar <- mean(sample)
+
+Xsq <- apply(X=as.data.frame(sample),FUN=function(data){data^2- Xbar^2},MARGIN = 1)
+
+sumOfSquares <- sum(Xsq)
+
+Sn <-  1/(sampleSize-1) *sumOfSquares
+
+unbiasedEstimateOfPoulationVariance <- (1 - 1/populationSize) *  Sn
+
+unbiasedEstimateOfPoulationSQ <- sqrt(unbiasedEstimateOfPoulationVariance)
+
+#Compare to sampling with replacement as a sanity check
+sd(sample)
+
+pander(data.frame(unbiasedEstimateOfPoulationVariance), 
+       caption = "Unbiased estimate of population variance")
+
+#Calculate estimated variance of Xbar
+
+SXbar <- Sn /sampleSize * (1- sampleSize/populationSize)
+
+
+pander(data.frame(SXbar), caption = "Unbiased estimate of Xbar variance")
+
+
+
+CI_low <- Xbar - 1.96 * SXbar
+CI_high <- Xbar + 1.96 * SXbar
+
+pander(data.frame(ci_low=CI_low,ci_high=CI_high), "95% CI for population mean based on SRS" )
+
+```

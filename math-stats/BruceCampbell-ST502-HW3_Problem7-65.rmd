@@ -1,0 +1,185 @@
+---
+title: "ST 502 HW 3 Chapter 7 Problem 65"
+author: "Bruce Campbell"
+date: "January 29, 2017"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE} 
+rm(list = ls())
+knitr::opts_chunk$set(dev = 'png')
+knitr::opts_chunk$set(fontsize=13)
+knitr::opts_chunk$set(dpi=600)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(prompt=FALSE)
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_chunk$set(fig.height=6)
+knitr::opts_chunk$set(fig.width=6)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+```
+
+Rice, John A.. Mathematical Statistics and Data Analysis
+Chapter 7 Problem 65
+
+The disk file cancer contains values for breast cancer mortality from 1950 to 1960 (y) and the adult white female population in 1960 (x) for 301 counties in North Carolina, South Carolina, and Georgia. 
+
+- a. Make a histogram of the population values for cancer mortality. - 
+- b. What are the population mean and total cancer mortality? What are the population variance and standard deviation? 
+- c. Simulate the sampling distribution of the mean of a sample of 25 observations of cancer mortality. 
+- d. Draw a simple random sample of size 25 and use it to estimate the mean and total cancer mortality. 
+- e. Estimate the population variance and standard deviation from the sample of part (d). 
+- f. Form 95% confidence intervals for the population mean and total from the sample of part (d). Do the intervals cover the population values? 
+- g. Repeat parts (d) through (f) for a sample of size 100. 
+
+##Histogram and Summary Statistics 
+
+```{r}
+library(pander)
+library(plyr)
+library(dplyr)
+library(readr)
+
+#cancer <- read_csv("C:/E/GD/NCSU/st-502/Rice-DataSets/Chapter 7/cancer.csv")
+cancer <- read_csv("D:/GD/NCSU/st-502/Rice-DataSets/Chapter 7/cancer.csv")
+colnames(cancer) <- c("mortality", "population")
+
+hist(cancer$mortality,20)
+
+summary(cancer)
+
+pander(data.frame(sum(cancer$mortality)), caption = "Toal Mortality")
+
+pander(data.frame(var(cancer$mortality)), caption = "Variance Mortality")
+
+pander(data.frame(sd(cancer$mortality)), caption = "Standard Deviation Mortality")
+
+```
+
+##Simulate the sampling distribution of the mean of a sample of 25 observations of cancer mortality.
+
+```{r}
+set.seed(314)
+sampleSize <- 25
+numSamples <- 1000
+
+totalSamples <- choose(nrow(cancer),sampleSize)
+pander(data.frame(totalSamples), "Total Possible Samples under SRS")
+
+samplingDist <- data.frame(matrix(ncol = 1,nrow = numSamples))
+colnames(samplingDist) <- "xbar"
+for(i in 1:numSamples)
+{
+  srsIndex <- sample(nrow(cancer), sampleSize, replace = FALSE)
+  srs <- cancer[srsIndex,]
+  Xbar <- mean(srs$mortality)
+  samplingDist[i,1]=Xbar
+}
+
+hist(as.numeric(samplingDist$xbar), 20, main = c("Histogram of Simulation of Sampling distribution for Sample Mean","Sample size =25","Number Of Samples = 1000"))
+
+
+hist(as.numeric(samplingDist$xbar),freq = FALSE, 100, main = c("Normalized Histogram with actual sampling distribution"))
+curve(dnorm(x, mean=mean(cancer$mortality), sd=sd(cancer$mortality)/sqrt(sampleSize)), add=TRUE)
+
+```
+
+##Draw a simple random sample of size 25 and use it to estimate the mean and total cancer mortality.
+
+```{r}
+set.seed(314)
+srsIndex <- sample(nrow(cancer), sampleSize, replace = FALSE)
+srs <- cancer[srsIndex,]
+Xbar <- mean(srs$mortality)
+
+totalMortality <- sum(srs$mortality)
+
+pander(data.frame(Xbar), caption = "Estimated mean from single SRS")
+
+pander(data.frame(totalMortality), caption = "Estimated total mortality from single SRS")
+
+```
+
+##Estimate the population variance and standard deviation from the sample of part (d).
+
+
+If $E[X] = \mu$ and $Var(X)=\sigma^2$ then we know that $E[\bar{X}] = \mu$ and 
+
+$$ Var( \bar{X} ) = \frac{\sigma^2}{n} \frac{N-n}{N-1} $$
+
+From this we can estimate $E[ \bar{X} ]$ and $Var(X)$ from our simulated sampling distribution.
+
+```{r}
+
+muHat <- mean(samplingDist$xbar)
+finitePopulationCorrection <- (nrow(cancer) - sampleSize) / ( nrow(cancer) -1)
+sigmaHat <- sd(samplingDist$xbar) * sqrt(sampleSize) * 1 / finitePopulationCorrection
+
+
+pander(data.frame(estimate=c(muHat,sigmaHat),actual=c(mean(cancer$mortality),sd(cancer$mortality)),parameter=c("mean", "standard deviation")),caption = "Avtual Versus Estimate from Sampling Distribution Sample Size = 25")
+  
+```
+
+
+##Repeat parts (d) through (f) for a sample of size 100. 
+
+```{r}
+set.seed(314)
+sampleSize <- 100
+numSamples <- 100000
+
+totalSamples <- choose(nrow(cancer),sampleSize)
+pander(data.frame(totalSamples), "Total Possible Samples under SRS")
+
+samplingDist <- data.frame(matrix(ncol = 1,nrow = numSamples))
+colnames(samplingDist) <- "xbar"
+for(i in 1:numSamples)
+{
+  srsIndex <- sample(nrow(cancer), sampleSize, replace = FALSE)
+  srs <- cancer[srsIndex,]
+  Xbar <- mean(srs$mortality)
+  samplingDist[i,1]=Xbar
+}
+
+hist(as.numeric(samplingDist$xbar), 20, main = c("Histogram of Simulation of Sampling distribution for Sample Mean","Sample size =100","Number Of Samples = 10000"))
+
+```
+
+
+Here we plot the histogram overlayed with the dirstribution function for $N(\mu, \sigma_{\overline{X}})$
+
+```{r, fig.width=5,fig.height=4}
+hist(as.numeric(samplingDist$xbar),freq = FALSE, 25, main = c("Normalized Histogram with actual sampling distribution"))
+curve(dnorm(x, mean=mean(cancer$mortality), sd=sd(cancer$mortality)/sqrt(sampleSize))*sqrt((numSamples-sampleSize)/( numSamples -1 )), add=TRUE)
+
+```
+
+###Draw a simple random sample of size 100 and use it to estimate the mean and total cancer mortality.
+
+```{r}
+srsIndex <- sample(nrow(cancer), sampleSize, replace = FALSE)
+srs <- cancer[srsIndex,]
+Xbar <- mean(srs$mortality)
+
+totalMortality <- sum(srs$mortality)
+
+pander(data.frame(Xbar), caption = "Estimated mean from single SRS")
+
+pander(data.frame(totalMortality), caption = "Estimated total mortality from single SRS")
+
+
+```
+
+###Estimate the population variance and standard deviation from the sample of part (d).
+
+```{r}
+
+muHat <- mean(samplingDist$xbar)
+
+sigmaHat <- sd(samplingDist$xbar) * sqrt(sampleSize)
+
+
+pander(data.frame(estimate=c(muHat,sigmaHat),actual=c(mean(cancer$mortality),sd(cancer$mortality)),parameter=c("mean", "standard deviation")),caption = "Avtual Versus Estimate from Sampling Distribution Sample Size = 100")
+  
+```
